@@ -3,7 +3,7 @@
 
 #include <vector>
 
-namespace frozenca::easy {
+namespace frozenca {
 
 using namespace std;
 
@@ -17,6 +17,6 @@ long linear_search(const vector<int>& A, int x) {
     return -1;
 }
 
-} // namespace frozenca::easy
+} // namespace frozenca
 
 #endif //__CLRS4_LINEAR_SEARCH_EASY_H__

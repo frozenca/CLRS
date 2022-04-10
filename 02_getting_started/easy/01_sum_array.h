@@ -3,7 +3,7 @@
 
 #include <vector>
 
-namespace frozenca::easy {
+namespace frozenca {
 
 using namespace std;
 
@@ -16,7 +16,7 @@ int sum_array(const vector<int>& A) {
     return sum;
 }
 
-} // namespace frozenca::easy
+} // namespace frozenca
 
 
 #endif //__CLRS4_SUM_ARRAY_EASY_H__

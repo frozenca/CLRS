@@ -1,9 +1,9 @@
-#ifndef __CLRS4_INSERTION_SORT_H__
-#define __CLRS4_INSERTION_SORT_H__
+#ifndef __CLRS4_INSERTION_SORT_HARD_H__
+#define __CLRS4_INSERTION_SORT_HARD_H__
 
 #include "../../core/common.h"
 
-namespace frozenca {
+namespace frozenca::hard {
 
 using namespace std;
 
@@ -34,8 +34,7 @@ struct insertion_sort_func {
             typename Comp = ranges::less,
             typename Proj = identity>
     requires sortable<ranges::iterator_t<Range>, Comp, Proj>
-    constexpr ranges::borrowed_iterator_t<Range>
-    operator()(Range&& r, Comp comp = {}, Proj proj = {}) const {
+    constexpr auto operator()(Range&& r, Comp comp = {}, Proj proj = {}) const {
         return (*this)(ranges::begin(r), ranges::end(r), move(comp), move(proj));
     }
 };
@@ -44,6 +43,6 @@ struct insertion_sort_func {
 
 inline constexpr insertion_sort_func insertion_sort{};
 
-} // namespace frozenca
+} // namespace frozenca::hard
 
-#endif //__CLRS4_INSERTION_SORT_H__
+#endif //__CLRS4_INSERTION_SORT_HARD_H__

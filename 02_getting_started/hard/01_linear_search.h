@@ -1,9 +1,9 @@
-#ifndef __CLRS4_LINEAR_SEARCH_H__
-#define __CLRS4_LINEAR_SEARCH_H__
+#ifndef __CLRS4_LINEAR_SEARCH_HARD_H__
+#define __CLRS4_LINEAR_SEARCH_HARD_H__
 
 #include "../../core/common.h"
 
-namespace frozenca {
+namespace frozenca::hard {
 
 using namespace std;
 
@@ -13,19 +13,20 @@ struct linear_search_func {
     template<input_iterator Iter, sentinel_for <Iter> Sentinel,
             typename T, typename Proj = identity>
     requires indirect_binary_predicate<ranges::equal_to, projected<Iter, Proj>, const T*>
-    constexpr Iter operator()(Iter first, Sentinel last, const T& value, Proj proj = {}) const {
-        for (; first != last; ++first) {
-            if (invoke(proj, *first) == value) {
-                return first;
+    constexpr iter_difference_t<Iter>
+            operator()(Iter first, Sentinel last, const T& value, Proj proj = {}) const {
+        auto it = first;
+        for (; it != last; ++it) {
+            if (invoke(proj, *it) == value) {
+                return ranges::distance(first, it);
             }
         }
-        return first;
+        return ranges::distance(first, it);
     }
 
     template<ranges::input_range Range, class T, class Proj = identity>
     requires indirect_binary_predicate<ranges::equal_to, projected<ranges::iterator_t<Range>, Proj>, const T*>
-    constexpr ranges::borrowed_iterator_t<Range>
-    operator()(Range&& r, const T& value, Proj proj = {}) const {
+    constexpr auto operator()(Range&& r, const T& value, Proj proj = {}) const {
         return (*this)(ranges::begin(r), ranges::end(r), value, ref(proj));
     }
 };
@@ -34,6 +35,6 @@ struct linear_search_func {
 
 inline constexpr linear_search_func linear_search{};
 
-} // namespace frozenca
+} // namespace frozenca::hard
 
-#endif //__CLRS4_LINEAR_SEARCH_H__
+#endif //__CLRS4_LINEAR_SEARCH_HARD_H__

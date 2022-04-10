@@ -1,9 +1,9 @@
-#ifndef __CLRS4_LINEAR_SEARCH_EASY_H__
-#define __CLRS4_LINEAR_SEARCH_EASY_H__
+#ifndef __CLRS4_INSERTION_SORT_H__
+#define __CLRS4_INSERTION_SORT_H__
 
 #include <vector>
 
-namespace frozenca::easy {
+namespace frozenca {
 
 using namespace std;
 
@@ -33,6 +33,6 @@ void insertion_sort_decreasing(vector<int>& A) {
     }
 }
 
-} // namespace frozenca::easy
+} // namespace frozenca
 
-#endif //__CLRS4_LINEAR_SEARCH_EASY_H__
+#endif //__CLRS4_INSERTION_SORT_H__

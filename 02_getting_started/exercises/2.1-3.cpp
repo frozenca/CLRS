@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
-#include "../inc/easy.h"
+#include "02_getting_started/inc/easy.h"
+#include "02_getting_started/inc/hard.h"
 
 int main() {
     namespace fc = frozenca;
@@ -8,12 +9,12 @@ int main() {
 
     {
         vector<int> v{2, 3, 1, 6, 5, 4};
-        fc::easy::insertion_sort_decreasing(v);
+        fc::insertion_sort_decreasing(v);
         fc::print(v);
     }
     {
         vector<int> v{2, 3, 1, 6, 5, 4};
-        fc::insertion_sort(v, greater{});
+        fc::hard::insertion_sort(v, greater{});
         fc::print(v);
     }
 
