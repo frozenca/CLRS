@@ -1,8 +1,8 @@
 #ifndef __CLRS4_UTIL_H__
 #define __CLRS4_UTIL_H__
 
-#include <ranges>
 #include <iostream>
+#include <ranges>
 
 namespace frozenca {
 
