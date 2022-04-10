@@ -7,6 +7,8 @@ namespace frozenca {
 
 using namespace std;
 
+namespace {
+
 struct sum_array_func {
     template<input_iterator Iter,
             typename T = iter_value_t<Iter>,
@@ -19,7 +21,7 @@ struct sum_array_func {
         return init;
     }
 
-    template <ranges::input_range Range,
+    template<ranges::input_range Range,
             typename T = ranges::range_value_t<Range>,
             typename BinaryOp = plus<>>
     requires is_nothrow_convertible_v<invoke_result_t<BinaryOp, T, T>, T>
@@ -27,6 +29,8 @@ struct sum_array_func {
         return (*this)(ranges::begin(r), ranges::end(r), move(init), move(op));
     }
 };
+
+} // anonymous namespace
 
 inline constexpr sum_array_func sum_array{};
 

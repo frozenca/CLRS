@@ -7,6 +7,8 @@ namespace frozenca {
 
 using namespace std;
 
+namespace {
+
 struct insertion_sort_func {
     template<bidirectional_iterator Iter,
             sentinel_for <Iter> Sentinel,
@@ -37,6 +39,8 @@ struct insertion_sort_func {
         return (*this)(ranges::begin(r), ranges::end(r), move(comp), move(proj));
     }
 };
+
+} // anonymous namespace
 
 inline constexpr insertion_sort_func insertion_sort{};
 
