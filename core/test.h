@@ -3,7 +3,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <random>
@@ -36,7 +38,27 @@ void range_verify(Func1&& f1, Func2&& f2, int num_trials, int max_length, Args&&
         }
     }
     cout << "Verification success!\n";
+}
 
+
+template<ranges::forward_range Range, typename Func, typename... Args>
+requires regular_invocable<Func, Range, Args...>
+void range_check_perf(Func&& f1, int num_trials, const vector<int>& max_lengths, Args&&... args) {
+    for (auto max_length : max_lengths) {
+        chrono::duration<double, micro> curr_length_duration (0);
+        uniform_int_distribution<> len_dist(0, max_length);
+        for (int i = 0; i < num_trials; ++i) {
+            Range v;
+            int n = len_dist(gen);
+            generate_n(back_inserter(v), n, ref(gen));
+            auto start = chrono::steady_clock::now();
+            f1(v, args...);
+            auto end = chrono::steady_clock::now();
+            curr_length_duration += (end - start);
+        }
+        cout << "Time to process a range of " << setw(9) << max_length << " elements : "
+        << (curr_length_duration.count() / num_trials) << " us\n";
+    }
 }
 
 } // anonymous namespace
@@ -49,6 +71,18 @@ requires sortable<ranges::iterator_t<Range>, Comp, Proj> && regular_invocable<Fu
 void verify_sorting(Func&& f, int num_trials = 1'000, int max_length = 1'000,
                     Comp comp = {}, Proj proj = {}) {
     range_verify<Range>(f, ranges::is_sorted, num_trials, max_length, comp, proj);
+}
+
+template <ranges::forward_range Range = vector<int>,
+        typename Func,
+        typename Comp = ranges::less,
+        typename Proj = identity>
+requires sortable<ranges::iterator_t<Range>, Comp, Proj> && regular_invocable<Func, Range, Comp, Proj>
+void perf_check_sorting(Func&& f,
+                        int num_trials = 1'000,
+                        const std::vector<int>& max_lengths = {10, 30, 100, 300, 1'000, 3'000},
+                        Comp comp = {}, Proj proj = {}) {
+    range_check_perf<Range>(f, num_trials, max_lengths, comp, proj);
 }
 
 } // namespace frozenca

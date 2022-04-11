@@ -8,9 +8,8 @@ namespace frozenca {
 using namespace std;
 
 int sum_array(const vector<int>& A) {
-    long n = ssize(A);
     int sum = 0;
-    for (long i = 0; i < n; ++i) {
+    for (long i = 0; i < ssize(A); ++i) {
         sum += A[i];
     }
     return sum;

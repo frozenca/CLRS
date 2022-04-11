@@ -4,6 +4,7 @@
 #include "../hard/01_sum_array.h"
 #include "../hard/01_insertion_sort.h"
 #include "../hard/01_linear_search.h"
+#include "../hard/01_selection_sort.h"
 #include "../../core/util.h"
 #include "../../core/test.h"
 

@@ -8,8 +8,7 @@ namespace frozenca {
 using namespace std;
 
 long linear_search(const vector<int>& A, int x) {
-    long n = ssize(A);
-    for (long i = 0; i < n; ++i) {
+    for (long i = 0; i < ssize(A); ++i) {
         if (A[i] == x) {
             return i;
         }

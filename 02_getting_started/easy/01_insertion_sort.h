@@ -8,8 +8,7 @@ namespace frozenca {
 using namespace std;
 
 void insertion_sort(vector<int>& A) {
-    long n = ssize(A);
-    for (long i = 1; i < n; ++i) {
+    for (long i = 1; i < ssize(A); ++i) {
         int key = A[i];
         long j = i - 1;
         while (j >= 0 && A[j] > key) {
@@ -21,8 +20,7 @@ void insertion_sort(vector<int>& A) {
 }
 
 void insertion_sort_decreasing(vector<int>& A) {
-    long n = ssize(A);
-    for (long i = 1; i < n; ++i) {
+    for (long i = 1; i < ssize(A); ++i) {
         int key = A[i];
         long j = i - 1;
         while (j >= 0 && A[j] < key) {
