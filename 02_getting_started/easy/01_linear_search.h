@@ -7,13 +7,13 @@ namespace frozenca {
 
 using namespace std;
 
-long linear_search(const vector<int>& A, int x) {
-    for (long i = 0; i < ssize(A); ++i) {
-        if (A[i] == x) {
-            return i;
-        }
+long linear_search(const vector<int> &A, int x) {
+  for (long i = 0; i < ssize(A); ++i) {
+    if (A[i] == x) {
+      return i;
     }
-    return -1;
+  }
+  return -1;
 }
 
 } // namespace frozenca

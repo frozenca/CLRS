@@ -10,10 +10,14 @@ int main() {
 
   {
     vector<int> v{2, 3, 1, 6, 5, 4};
-    cout << fc::linear_search(v, 6) << '\n';
+    fc::selection_sort(v);
+    fc::print(v);
   }
   {
     vector<int> v{2, 3, 1, 6, 5, 4};
-    cout << fc::hard::linear_search(v, 6) << '\n';
+    fc::hard::selection_sort(v);
+    fc::print(v);
+
+    fc::verify_sorting(fc::hard::selection_sort);
   }
 }
