@@ -1,5 +1,5 @@
-#ifndef __CLRS4_MERGE_SORT_H__
-#define __CLRS4_MERGE_SORT_H__
+#ifndef __CLRS4_PROBLEMS_02_04_H__
+#define __CLRS4_PROBLEMS_02_04_H__
 
 #include <vector>
 
@@ -9,7 +9,7 @@ using namespace std;
 
 namespace {
 
-void merge_impl(vector<int> &A, long p, long q, long r) {
+void merge_impl(vector<int> &A, long p, long q, long r, long &count) {
   long n_l = q - p; // length of A[p : q)
   long n_r = r - q; // length of A[q : r)
   vector<int> L(n_l);
@@ -26,12 +26,13 @@ void merge_impl(vector<int> &A, long p, long q, long r) {
   // As long as each of the arrays L and R contains an unmerged element,
   // copy the smallest unmerged element back into A[p : r)
   while (i < n_l && j < n_r) {
-    if (L[i] <= R[j]) {
+    if (L[i] < R[j]) {
       A[k] = L[i];
       ++i;
     } else {
       A[k] = R[j];
       ++j;
+      count += n_l - i;
     }
     ++k;
   }
@@ -49,21 +50,25 @@ void merge_impl(vector<int> &A, long p, long q, long r) {
   }
 }
 
-void merge_sort_impl(vector<int> &A, long p, long r) {
+void count_inversion_impl(vector<int> &A, long p, long r, long &count) {
   if (r - p < 2) { // zero or one element?
     return;
   }
-  long q = p + (r - p) / 2; // midpoint of A[p : r)
-  merge_sort_impl(A, p, q); // recursively sort A[p : q)
-  merge_sort_impl(A, q, r); // recursively sort A[q : r)
+  long q = p + (r - p) / 2;             // midpoint of A[p : r)
+  count_inversion_impl(A, p, q, count); // recursively sort A[p : q)
+  count_inversion_impl(A, q, r, count); // recursively sort A[q : r)
   // merge A[p : q) and A[q : r) into A[p : r).
-  merge_impl(A, p, q, r);
+  merge_impl(A, p, q, r, count);
 }
 
 } // anonymous namespace
 
-void merge_sort(vector<int> &A) { merge_sort_impl(A, 0, ssize(A)); }
+long count_inversion(vector<int> &A) {
+  long count = 0;
+  count_inversion_impl(A, 0, ssize(A), count);
+  return count;
+}
 
 } // namespace frozenca
 
-#endif //__CLRS4_MERGE_SORT_H__
+#endif //__CLRS4_PROBLEMS_02_04_H__

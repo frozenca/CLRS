@@ -14,6 +14,6 @@ int main() {
   }
   {
     vector<int> v{2, 3, 1, 6, 5, 4};
-    cout << fc::hard::linear_search(v, 6) << '\n';
+    cout << ranges::distance(ranges::begin(v), ranges::find(v, 6)) << '\n';
   }
 }

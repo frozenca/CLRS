@@ -11,6 +11,9 @@
 #include <02_getting_started/easy/03_merge_sort.h>
 #include <02_getting_started/easy/03_binary_search.h>
 #include <02_getting_started/easy/03_two_sum.h>
+#include <02_getting_started/easy/problems_02_bubble_sort.h>
+#include <02_getting_started/easy/problems_03_horner.h>
+#include <02_getting_started/easy/problems_04_inversion.h>
 
 
 #endif //__CLRS4_CH2_EASY_H__

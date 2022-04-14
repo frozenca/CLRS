@@ -3,14 +3,12 @@
 #include <iostream>
 #include <vector>
 
-
 int main() {
   namespace fc = frozenca;
   using namespace std;
 
   {
-    vector<int> v{2, 3, 1, 6, 5, 4};
-    fc::selection_sort(v);
-    fc::print(v);
+    vector<int> v {2, 3, 8, 6, 1};
+    cout << fc::count_inversion(v) << '\n';
   }
 }

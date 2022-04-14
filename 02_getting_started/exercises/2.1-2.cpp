@@ -11,8 +11,4 @@ int main() {
     vector<int> v{2, 3, 1, 6, 5, 4};
     cout << fc::sum_array(v) << '\n';
   }
-  {
-    vector<int> v{2, 3, 1, 6, 5, 4};
-    cout << fc::hard::sum_array(v) << '\n';
-  }
 }
