@@ -1,6 +1,7 @@
 #ifndef __CLRS4_BINARY_SEARCH_H__
 #define __CLRS4_BINARY_SEARCH_H__
 
+#include <core/common.h>
 #include <vector>
 
 namespace frozenca {
@@ -8,8 +9,8 @@ namespace frozenca {
 using namespace std;
 
 bool binary_search_func(const vector<int>& A, int T) {
-    long l = 0;
-    long r = ssize(A);
+    index_t l = 0;
+    index_t r = ssize(A);
     while (l < r) {
         auto m = l + (r - l) / 2;
         if (A[m] < T) {
@@ -23,7 +24,7 @@ bool binary_search_func(const vector<int>& A, int T) {
     return false;
 }
 
-long binary_search_lower_bound(const vector<int>& A, int T, long l, long r) {
+index_t binary_search_lower_bound(const vector<int>& A, int T, index_t l, index_t r) {
     while (l < r) {
         auto m = l + (r - l) / 2;
         if (A[m] < T) {

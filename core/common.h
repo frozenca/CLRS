@@ -11,5 +11,8 @@
 #include <type_traits>
 #include <utility>
 
+namespace frozenca {
+using index_t = ptrdiff_t;
+} // namespace frozenca
 
 #endif //__CLRS4_COMMON_H__

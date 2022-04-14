@@ -8,7 +8,6 @@
 namespace frozenca {
 
 using namespace std;
-
 template <semiregular T>
 using MatrixInitializer = initializer_list<initializer_list<T>>;
 
@@ -25,7 +24,7 @@ bool check_non_jagged(const MatrixInitializer<T> &init) {
 
 template <semiregular T>
 void insert_flat(unique_ptr<T[]> &data, const MatrixInitializer<T> &init) {
-  long index = 0;
+  index_t index = 0;
   auto curr_row = cbegin(init);
   auto last_row = cend(init);
   for (; curr_row != last_row; ++curr_row) {

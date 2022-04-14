@@ -88,10 +88,9 @@ struct insertion_and_merge_sort_func {
   requires sortable<ranges::iterator_t<Range>, Comp, Proj>
   constexpr auto operator()(Range &&r, Comp comp = {}, Proj proj = {}) const {
     using value_t = ranges::range_value_t<Range>;
-    auto temp_buffer = new value_t[ranges::size(r)];
+    auto temp_buffer = make_unique_for_overwrite<value_t[]>(ranges::size(r));
     const auto ret = (*this)(ranges::begin(r), ranges::end(r), move(comp),
-                             move(proj), temp_buffer);
-    delete[] temp_buffer;
+                             move(proj), temp_buffer.get());
     return ret;
   }
 };
