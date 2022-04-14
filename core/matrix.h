@@ -141,12 +141,15 @@ public:
     }
   }
 
+
+private:
   template <bool ConstOther>
   MatrixView(const MatrixView<T, ConstOther> &other)
       : rows_{other.rows()}, cols_{other.cols()}, orig_cols_{other.orig_cols_} {
     view_ = const_cast<pointer>(other.view());
   }
 
+public:
   reference operator()(size_t r, size_t c) {
     assert(r < rows_ && c < cols_);
     return view_[r * cols_ + c];
