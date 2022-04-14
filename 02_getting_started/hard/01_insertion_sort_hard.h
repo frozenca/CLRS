@@ -1,7 +1,7 @@
 #ifndef __CLRS4_INSERTION_SORT_HARD_H__
 #define __CLRS4_INSERTION_SORT_HARD_H__
 
-#include "../../core/common.h"
+#include <core/common.h>
 
 namespace frozenca::hard {
 
@@ -15,8 +15,9 @@ struct insertion_sort_func {
   requires sortable<Iter, Comp, Proj>
   constexpr Iter operator()(Iter first, Sentinel last, Comp comp = {},
                             Proj proj = {}) const {
-    if (first == last)
+    if (first == last) {
       return first;
+    }
     for (auto i = next(first); i != last; ++i) {
       auto key = *i;
       auto j = i;
@@ -38,9 +39,34 @@ struct insertion_sort_func {
   }
 };
 
+struct insertion_sort_recursive_func {
+  template <bidirectional_iterator Iter, sentinel_for<Iter> Sentinel,
+            typename Comp = ranges::less, typename Proj = identity>
+  requires sortable<Iter, Comp, Proj>
+  constexpr Iter operator()(Iter first, Sentinel last, Comp comp = {},
+                            Proj proj = {}) const {
+    if (first == last) {
+      return first;
+    }
+    (*this)(first, prev(last), comp, proj);
+    auto key = move(invoke(proj, *prev(last)));
+    ranges::rotate(ranges::lower_bound(first, prev(last), key, move(comp), move(proj)), prev(last), last);
+    return last;
+  }
+
+  template <ranges::bidirectional_range Range, typename Comp = ranges::less,
+            typename Proj = identity>
+  requires sortable<ranges::iterator_t<Range>, Comp, Proj>
+  constexpr auto operator()(Range &&r, Comp comp = {}, Proj proj = {}) const {
+    return (*this)(ranges::begin(r), ranges::end(r), move(comp), move(proj));
+  }
+};
+
 } // anonymous namespace
 
 inline constexpr insertion_sort_func insertion_sort{};
+
+inline constexpr insertion_sort_recursive_func insertion_sort_recursive{};
 
 } // namespace frozenca::hard
 

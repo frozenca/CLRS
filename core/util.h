@@ -52,7 +52,9 @@ constexpr void log_impl(const string_view message, log_level level,
 template <typename... Args>
 constexpr void log(const string_view message,
                    log_level level = log_level::debug, Args &&...args) {
-  log_impl(message, level, source_location::current(), clog, args...);
+
+  ostream& log_stream = level == log_level::all ? cout : clog;                   
+  log_impl(message, level, source_location::current(), log_stream, args...);
 }
 
 template <ranges::input_range R> void print(R &&r, ostream &os = cout) {

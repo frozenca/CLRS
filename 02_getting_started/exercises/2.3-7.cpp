@@ -3,21 +3,22 @@
 #include <iostream>
 #include <vector>
 
-
 int main() {
   namespace fc = frozenca;
   using namespace std;
 
   {
     vector<int> v{2, 3, 1, 6, 5, 4};
-    fc::selection_sort(v);
+    fc::insertion_sort_recursive_binary_search(v);
     fc::print(v);
   }
   {
     vector<int> v{2, 3, 1, 6, 5, 4};
-    fc::hard::selection_sort(v);
+    fc::hard::insertion_sort_recursive(v);
     fc::print(v);
-
-    fc::verify_sorting(fc::hard::selection_sort);
+    fc::verify_sorting(ranges::sort);
+    fc::verify_sorting(fc::hard::insertion_sort_recursive);
+    fc::perf_check_sorting(ranges::sort);
+    fc::perf_check_sorting(fc::hard::insertion_sort_recursive);
   }
 }
