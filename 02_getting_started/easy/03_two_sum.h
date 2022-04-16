@@ -1,7 +1,7 @@
 #ifndef __CLRS4_TWO_SUM_H__
 #define __CLRS4_TWO_SUM_H__
 
-#include <core/common.h>
+#include <common.h>
 #include <algorithm>
 #include <vector>
 

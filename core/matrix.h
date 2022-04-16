@@ -1,8 +1,9 @@
 #ifndef __CLRS4_MATRIX_H__
 #define __CLRS4_MATRIX_H__
 
-#include <core/common.h>
+#include <common.h>
 #include <initializer_list>
+#include <iostream>
 #include <stdexcept>
 
 namespace frozenca {
@@ -37,10 +38,21 @@ void insert_flat(unique_ptr<T[]> &data, const MatrixInitializer<T> &init) {
   }
 }
 
-template <semiregular T, bool Const> class MatrixView;
+template <semiregular T> class Matrix;
+
+template <semiregular T, bool Const = false> class MatrixView;
+
+template <typename Mat>
+concept MatType = requires(Mat m, size_t r, size_t c) {
+  m(r, c);
+  m.rows();
+  m.cols();
+  m.submatrix(r, c);
+};
 
 template <semiregular T> class Matrix {
 public:
+  using value_type = T;
   Matrix(size_t rows, size_t cols)
       : rows_{rows}, cols_{cols}, buffer_(make_unique<T[]>(rows_ * cols_)) {
     if (!rows_ || !cols_) {
@@ -69,7 +81,8 @@ public:
   Matrix(const Matrix &other)
       : rows_{other.rows_}, cols_{other.cols_},
         buffer_(make_unique<T[]>(rows_ * cols_)) {
-    copy(cbegin(other.buffer_), cend(other.buffer_), begin(buffer_));
+    copy(other.buffer_.get(), other.buffer_.get() + rows_ * cols_,
+         buffer_.get());
   }
 
   Matrix &operator=(const Matrix &other) {
@@ -91,31 +104,80 @@ public:
     return buffer_[r * cols_ + c];
   }
 
-  [[nodiscard]] size_t rows() const { return rows_; }
+  void zero_fill() { fill(buffer_.get(), buffer_.get() + rows_ * cols_, T{}); }
 
-  [[nodiscard]] size_t cols() const { return cols_; }
-
-  MatrixView<T, false> submatrix(size_t r1, size_t c1) {
-    return submatrix(r1, c1, rows(), cols());
+  void random_fill() requires is_integral_v<T> {
+    mt19937 gen(random_device{}());
+    uniform_int_distribution<T> dist(0, 500);
+    generate(buffer_.get(), buffer_.get() + rows_ * cols_,
+             [&dist, &gen]() { return dist(gen); });
   }
 
-  MatrixView<T, false> submatrix(size_t r1, size_t c1, size_t r2, size_t c2) {
+  void random_fill() requires is_floating_point_v<T> {
+    mt19937 gen(random_device{}());
+    uniform_real_distribution<T> dist(T{-300}, T{300});
+    generate(buffer_.get(), buffer_.get() + rows_ * cols_,
+             [&dist, &gen]() { return dist(gen); });
+  }
+
+  [[nodiscard]] size_t urows() const { return rows_; }
+
+  [[nodiscard]] size_t ucols() const { return cols_; }
+
+  [[nodiscard]] index_t rows() const { return static_cast<index_t>(rows_); }
+
+  [[nodiscard]] index_t cols() const { return static_cast<index_t>(cols_); }
+
+  MatrixView<T> submatrix(size_t r1, size_t c1) {
+    return submatrix(r1, c1, urows(), ucols());
+  }
+
+  MatrixView<T> submatrix(size_t r1, size_t c1, size_t r2, size_t c2) {
     return as_const(*this).submatrix(r1, c1, r2, c2);
   }
 
   MatrixView<T, true> submatrix(size_t r1, size_t c1) const {
-    return submatrix(r1, c1, rows(), cols());
+    return submatrix(r1, c1, urows(), ucols());
   }
 
   MatrixView<T, true> submatrix(size_t r1, size_t c1, size_t r2,
                                 size_t c2) const {
-    if (r1 >= r2 || c1 >= c2) {
+    if (r1 >= r2 || c1 >= c2 || r2 > rows_ || c2 > cols_) {
       throw invalid_argument("submatrix dimension is invalid\n");
     }
-    MatrixView<T, true> sub(r2 - r1, c2 - c1, &buffer_[r1 * cols_ + c1], rows_,
-                            cols_);
+    MatrixView<T, true> sub(r2 - r1, c2 - c1, &buffer_[r1 * cols_ + c1], cols_);
     return sub;
   }
+
+  template <MatType Mat>
+  Matrix(const Mat &other) : Matrix(other.urows(), other.ucols()) {
+    for (size_t r = 0; r < rows_; ++r) {
+      for (size_t c = 0; c < cols_; ++c) {
+        (*this)(r, c) = other(r, c);
+      }
+    }
+  }
+
+  template <MatType Mat> Matrix &operator+=(const Mat &other) {
+    for (size_t r = 0; r < rows_; ++r) {
+      for (size_t c = 0; c < cols_; ++c) {
+        (*this)(r, c) += other(r, c);
+      }
+    }
+    return *this;
+  }
+
+  template <MatType Mat> Matrix &operator-=(const Mat &other) {
+    for (size_t r = 0; r < rows_; ++r) {
+      for (size_t c = 0; c < cols_; ++c) {
+        (*this)(r, c) += other(r, c);
+      }
+    }
+    return *this;
+  }
+
+  friend class MatrixView<T, false>;
+  friend class MatrixView<T, true>;
 
 private:
   size_t rows_;
@@ -125,13 +187,13 @@ private:
 
 template <semiregular T, bool Const> class MatrixView {
 public:
+  using value_type = T;
   using pointer = conditional_t<Const, const T *, T *>;
   using reference = conditional_t<Const, const T &, T &>;
 
-  MatrixView(size_t rows, size_t cols, pointer view, size_t orig_rows,
-             size_t orig_cols)
+  MatrixView(size_t rows, size_t cols, pointer view, size_t orig_cols)
       : rows_{rows}, cols_{cols}, view_{view}, orig_cols_{orig_cols} {
-    if (rows > orig_rows || cols > orig_cols) {
+    if (cols > orig_cols) {
       throw invalid_argument("Dimension of matrix view exceeds dimension of "
                              "the original matrix\n");
     }
@@ -140,33 +202,79 @@ public:
     }
   }
 
-
 private:
   template <bool ConstOther>
   MatrixView(const MatrixView<T, ConstOther> &other)
-      : rows_{other.rows()}, cols_{other.cols()}, orig_cols_{other.orig_cols_} {
+      : rows_{other.urows()}, cols_{other.ucols()}, orig_cols_{
+                                                        other.orig_cols_} {
     view_ = const_cast<pointer>(other.view());
   }
 
 public:
   reference operator()(size_t r, size_t c) {
     assert(r < rows_ && c < cols_);
-    return view_[r * cols_ + c];
+    return view_[r * orig_cols_ + c];
   }
 
   const T &operator()(size_t r, size_t c) const {
     assert(r < rows_ && c < cols_);
-    return view_[r * cols_ + c];
+    return view_[r * orig_cols_ + c];
   }
 
-  [[nodiscard]] size_t rows() const { return rows_; }
+  [[nodiscard]] size_t urows() const { return rows_; }
 
-  [[nodiscard]] size_t cols() const { return cols_; }
+  [[nodiscard]] size_t ucols() const { return cols_; }
+
+  [[nodiscard]] index_t rows() const { return static_cast<index_t>(rows_); }
+
+  [[nodiscard]] index_t cols() const { return static_cast<index_t>(cols_); }
 
   [[nodiscard]] pointer view() const { return view_; }
 
+  MatrixView<T, Const> submatrix(size_t r1, size_t c1) {
+    return submatrix(r1, c1, urows(), ucols());
+  }
+
+  MatrixView<T, Const> submatrix(size_t r1, size_t c1, size_t r2, size_t c2) {
+    return as_const(*this).submatrix(r1, c1, r2, c2);
+  }
+
+  MatrixView<T, true> submatrix(size_t r1, size_t c1) const {
+    return submatrix(r1, c1, urows(), ucols());
+  }
+
+  MatrixView<T, true> submatrix(size_t r1, size_t c1, size_t r2,
+                                size_t c2) const {
+    if (r1 >= r2 || c1 >= c2) {
+      throw invalid_argument("submatrix dimension is invalid\n");
+    }
+    MatrixView<T, true> sub(r2 - r1, c2 - c1, &view_[r1 * orig_cols_ + c1],
+                            orig_cols_);
+    return sub;
+  }
+
   friend class Matrix<T>;
   friend class MatrixView<T, !Const>;
+
+  template <MatType Mat>
+  MatrixView &operator+=(const Mat &mat) requires(!Const) {
+    for (size_t r = 0; r < rows_; ++r) {
+      for (size_t c = 0; c < cols_; ++c) {
+        (*this)(r, c) += mat(r, c);
+      }
+    }
+    return *this;
+  }
+
+  template <MatType Mat>
+  MatrixView &operator-=(const Mat &mat) requires(!Const) {
+    for (size_t r = 0; r < rows_; ++r) {
+      for (size_t c = 0; c < cols_; ++c) {
+        (*this)(r, c) -= mat(r, c);
+      }
+    }
+    return *this;
+  }
 
 private:
   size_t rows_;
@@ -174,6 +282,73 @@ private:
   size_t orig_cols_;
   pointer view_;
 };
+
+template <MatType Mat1, MatType Mat2>
+auto operator+(const Mat1 &A, const Mat2 &B) {
+  if (A.rows() != B.rows() || A.cols() != B.cols()) {
+    throw invalid_argument("Matrix dimensions do not match\n");
+  }
+  index_t rows = A.rows();
+  index_t cols = A.cols();
+  using T = common_type_t<typename Mat1::value_type, typename Mat2::value_type>;  
+  Matrix<T> C(rows, cols);
+  for (index_t r = 0; r < rows; ++r) {
+    for (index_t c = 0; c < cols; ++c) {
+      C(r, c) = A(r, c) + B(r, c);
+    }
+  }
+  return C;
+}
+
+template <MatType Mat1, MatType Mat2>
+auto operator-(const Mat1 &A, const Mat2 &B) {
+  if (A.rows() != B.rows() || A.cols() != B.cols()) {
+    throw invalid_argument("Matrix dimensions do not match\n");
+  }
+  index_t rows = A.rows();
+  index_t cols = A.cols();
+  using T = common_type_t<typename Mat1::value_type, typename Mat2::value_type>;  
+  Matrix<T> C(rows, cols);
+  for (index_t r = 0; r < rows; ++r) {
+    for (index_t c = 0; c < cols; ++c) {
+      C(r, c) = A(r, c) - B(r, c);
+    }
+  }
+  return C;
+}
+
+template <MatType Mat1, MatType Mat2>
+auto operator*(const Mat1 &A, const Mat2 &B) {
+  if (A.cols() != B.rows()) {
+    throw invalid_argument("Matrix dimensions do not match\n");
+  }
+  index_t rows = A.rows();
+  index_t cols = B.cols();
+  using T = common_type_t<typename Mat1::value_type, typename Mat2::value_type>;  
+  Matrix<T> C(rows, cols);
+  C.zero_fill();
+  for (index_t r = 0; r < rows; ++r) {
+    for (index_t c = 0; c < cols; ++c) {
+      for (index_t k = 0; k < A.cols(); ++k) {
+        C(r, c) += A(r, k) * B(k, c);
+      }
+    }
+  }
+  return C;
+}
+
+template <MatType Mat> ostream &operator<<(ostream &os, const Mat &m) {
+  os << '{';
+  for (index_t r = 0; r < m.rows(); ++r) {
+    os << '{';
+    for (index_t c = 0; c < m.cols(); ++c) {
+      os << m(r, c) << ((c < m.cols() - 1) ? ", " : "");
+    }
+    os << '}' << ((r < m.rows() - 1) ? ",\n" : "");
+  }
+  os << '}';
+  return os;
+}
 
 } // namespace frozenca
 

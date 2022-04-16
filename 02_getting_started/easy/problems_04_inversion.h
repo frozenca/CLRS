@@ -1,7 +1,7 @@
 #ifndef __CLRS4_PROBLEMS_02_04_H__
 #define __CLRS4_PROBLEMS_02_04_H__
 
-#include <core/common.h>
+#include <common.h>
 #include <vector>
 
 namespace frozenca {

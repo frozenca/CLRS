@@ -2,7 +2,7 @@
 #define __CLRS4_PROBLEMS_02_01_HARD_H__
 
 #include <02_getting_started/hard/01_insertion_sort_hard.h>
-#include <core/common.h>
+#include <common.h>
 
 namespace frozenca::hard {
 

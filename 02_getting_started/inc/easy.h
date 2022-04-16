@@ -1,8 +1,8 @@
 #ifndef __CLRS4_CH2_EASY_H__
 #define __CLRS4_CH2_EASY_H__
 
-#include <core/test.h>
-#include <core/util.h>
+#include <test.h>
+#include <util.h>
 #include <02_getting_started/easy/01_add_binary_integers.h>
 #include <02_getting_started/easy/01_insertion_sort.h>
 #include <02_getting_started/easy/01_linear_search.h>

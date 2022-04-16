@@ -11,7 +11,7 @@ FILE(GLOB_RECURSE CLRS4_inc *.h)
 
 add_executable(CLRS4 main.cpp ${CLRS4_inc})
 
-target_include_directories(CLRS4 PRIVATE ${CMAKE_SOURCE_DIR})
+target_include_directories(CLRS4 PRIVATE ${CMAKE_SOURCE_DIR} core)
 
 if(MSVC)
   target_compile_options(CLRS4 PRIVATE /W4 /WX)

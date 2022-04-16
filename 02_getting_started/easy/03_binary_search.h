@@ -1,7 +1,7 @@
 #ifndef __CLRS4_BINARY_SEARCH_H__
 #define __CLRS4_BINARY_SEARCH_H__
 
-#include <core/common.h>
+#include <common.h>
 #include <vector>
 
 namespace frozenca {

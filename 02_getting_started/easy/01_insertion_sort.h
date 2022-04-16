@@ -2,7 +2,7 @@
 #define __CLRS4_INSERTION_SORT_H__
 
 #include <02_getting_started/easy/03_binary_search.h>
-#include <core/common.h>
+#include <common.h>
 #include <cassert>
 #include <vector>
 namespace frozenca {

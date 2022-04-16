@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
-#include <core/util.h>
 #include <functional>
 #include <iomanip>
 #include <iostream>
@@ -12,14 +11,14 @@
 #include <random>
 #include <ranges>
 #include <stdexcept>
+#include <util.h>
 #include <utility>
 #include <vector>
+
 
 namespace frozenca {
 
 using namespace std;
-
-mt19937 gen(random_device{}());
 
 namespace {
 
@@ -29,6 +28,7 @@ requires regular_invocable<Func1, Range, Args...> &&
     regular_invocable<Func2, Range, Args...>
 void range_verify(Func1 &&f1, Func2 &&f2, int num_trials, int max_length,
                   Args &&...args) {
+  mt19937 gen(random_device{}());
   uniform_int_distribution<> len_dist(0, max_length);
 
   for (int i = 0; i < num_trials; ++i) {
@@ -49,6 +49,7 @@ requires regular_invocable<Func1, Range, Args...> &&
     regular_invocable<Func2, Range, Args...>
 void sorted_range_verify(Func1 &&f1, Func2 &&f2, int num_trials, int max_length,
                          Args &&...args) {
+  mt19937 gen(random_device{}());
   uniform_int_distribution<> len_dist(0, max_length);
   uniform_real_distribution<> contain_zero(0.2);
 
@@ -71,6 +72,7 @@ template <ranges::forward_range Range, typename Func, typename... Args>
 requires regular_invocable<Func, Range, Args...>
 void range_check_perf(Func &&f, int num_trials, const vector<int> &max_lengths,
                       Args &&...args) {
+  mt19937 gen(random_device{}());
   for (auto max_length : max_lengths) {
     chrono::duration<double, micro> curr_length_duration(0);
     uniform_int_distribution<> len_dist(0, max_length);
@@ -114,7 +116,8 @@ void perf_check_sorting(Func &&f, int num_trials = 10'000,
 
 template <ranges::forward_range Range = vector<int>, typename Func,
           typename Comp = ranges::less, typename Proj = identity>
-requires regular_invocable<Func, Range, ranges::range_value_t<Range>, Comp, Proj>
+requires regular_invocable<Func, Range, ranges::range_value_t<Range>, Comp,
+                           Proj>
 void verify_binary_search(Func &&f, int num_trials = 1'000,
                           int max_length = 1'000, Comp comp = {},
                           Proj proj = {}) {

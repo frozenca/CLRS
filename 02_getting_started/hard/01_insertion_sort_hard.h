@@ -1,7 +1,7 @@
 #ifndef __CLRS4_INSERTION_SORT_HARD_H__
 #define __CLRS4_INSERTION_SORT_HARD_H__
 
-#include <core/common.h>
+#include <common.h>
 
 namespace frozenca::hard {
 

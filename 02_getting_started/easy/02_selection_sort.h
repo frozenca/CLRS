@@ -1,7 +1,7 @@
 #ifndef __CLRS4_SELECTION_SORT_H__
 #define __CLRS4_SELECTION_SORT_H__
 
-#include <core/common.h>
+#include <common.h>
 #include <utility>
 #include <vector>
 

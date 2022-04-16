@@ -1,7 +1,7 @@
 #ifndef __CLRS4_LINEAR_SEARCH_EASY_H__
 #define __CLRS4_LINEAR_SEARCH_EASY_H__
 
-#include <core/common.h>
+#include <common.h>
 #include <vector>
 
 namespace frozenca {
