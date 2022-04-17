@@ -126,6 +126,16 @@ void verify_binary_search(Func &&f, int num_trials = 1'000,
                              move(proj));
 }
 
+template <ranges::random_access_range Range = vector<int>, typename Func,
+          typename Comp = ranges::less, typename Proj = identity>
+requires sortable<ranges::iterator_t<Range>, Comp, Proj> &&
+    regular_invocable<Func, Range, Comp, Proj>
+void verify_heapify(Func &&f, int num_trials = 1'000, int max_length = 10,
+                    Comp comp = {}, Proj proj = {}) {
+  range_verify<Range>(f, ranges::is_heap, num_trials, max_length, move(comp),
+                      move(proj));
+}
+
 } // namespace frozenca
 
 #endif //__CLRS4_TEST_H__
