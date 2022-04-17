@@ -27,7 +27,7 @@ void merge_impl(vector<int> &A, index_t p, index_t q, index_t r, index_t &count)
   // As index_t as each of the arrays L and R contains an unmerged element,
   // copy the smallest unmerged element back into A[p : r)
   while (i < n_l && j < n_r) {
-    if (L[i] < R[j]) {
+    if (L[i] <= R[j]) {
       A[k] = L[i];
       ++i;
     } else {
