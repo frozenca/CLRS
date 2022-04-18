@@ -8,13 +8,13 @@
 #include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <numeric>
 #include <random>
 #include <ranges>
 #include <stdexcept>
 #include <util.h>
 #include <utility>
 #include <vector>
-
 
 namespace frozenca {
 
@@ -68,13 +68,41 @@ void sorted_range_verify(Func1 &&f1, Func2 &&f2, int num_trials, int max_length,
   log("Verification success!\n", log_level::all);
 }
 
+struct stats {
+  float average = 0.0f;
+  float stdev = 0.0f;
+  float percentile_95 = 0.0f;
+  float percentile_99 = 0.0f;
+  float percentile_999 = 0.0f;
+};
+
+stats get_statistics(vector<float> &v) {
+  auto n = ssize(v);
+  if (n == 0) {
+    return {};
+  }
+  stats s;
+  s.average = accumulate(v.begin(), v.end(), 0.0f) / n;
+  float variance = 0.0f;
+  for (auto value : v) {
+    variance += pow(value - s.average, 2.0f);
+  }
+  variance /= n;
+  s.stdev = sqrt(variance);
+  ranges::sort(v);
+  s.percentile_95 = *(v.begin() + (19 * n / 20));
+  s.percentile_99 = *(v.begin() + (99 * n / 100));
+  s.percentile_999 = *(v.begin() + (999 * n / 1000));
+  return s;
+}
+
 template <ranges::forward_range Range, typename Func, typename... Args>
 requires regular_invocable<Func, Range, Args...>
 void range_check_perf(Func &&f, int num_trials, const vector<int> &max_lengths,
                       Args &&...args) {
   mt19937 gen(random_device{}());
   for (auto max_length : max_lengths) {
-    chrono::duration<double, micro> curr_length_duration(0);
+    vector<float> durations;
     uniform_int_distribution<> len_dist(0, max_length);
     for (int i = 0; i < num_trials; ++i) {
       Range v;
@@ -83,11 +111,19 @@ void range_check_perf(Func &&f, int num_trials, const vector<int> &max_lengths,
       auto start = chrono::steady_clock::now();
       f(v, args...);
       auto end = chrono::steady_clock::now();
-      curr_length_duration += (end - start);
+      durations.push_back(
+          chrono::duration_cast<chrono::duration<float, micro>>(end - start)
+              .count());
     }
-    log("Time to process a range of {:6} elements : {:10.4f} us\n",
-        log_level::all, max_length,
-        (curr_length_duration.count() / num_trials));
+    auto stat = get_statistics(durations);
+    log("Time to process a range of {:6} elements:\n"
+        "Average : {:10.4f} us,\n"
+        "Stdev   : {:10.4f} us,\n"
+        "95%     : {:10.4f} us,\n"
+        "99%     : {:10.4f} us,\n"
+        "99.9%   : {:10.4f} us,\n",
+        log_level::all, max_length, stat.average, stat.stdev,
+        stat.percentile_95, stat.percentile_99, stat.percentile_999);
   }
 }
 
