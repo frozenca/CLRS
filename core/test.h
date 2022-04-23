@@ -133,7 +133,7 @@ template <ranges::forward_range Range = vector<int>, typename Func,
           typename Comp = ranges::less, typename Proj = identity>
 requires sortable<ranges::iterator_t<Range>, Comp, Proj> &&
     regular_invocable<Func, Range, Comp, Proj>
-void verify_sorting(Func &&f, int num_trials = 1'000, int max_length = 1'000,
+void verify_sorting(Func &&f, int num_trials = 1'000, int max_length = 5'000,
                     Comp comp = {}, Proj proj = {}) {
   range_verify<Range>(f, ranges::is_sorted, num_trials, max_length, move(comp),
                       move(proj));
