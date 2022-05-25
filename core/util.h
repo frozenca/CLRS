@@ -59,7 +59,7 @@ constexpr void log(const string_view message,
 
 template <ranges::input_range R> void print(R &&r, ostream &os = cout) {
   for (auto elem : r) {
-    os << elem << ' ';
+    os << elem << ", ";
   }
   os << '\n';
 }
