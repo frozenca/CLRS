@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <common.h>
-#include <hashtable.h>
+#include <hashtable_naive.h>
 #include <limits>
 #include <stdexcept>
 

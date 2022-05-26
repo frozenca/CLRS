@@ -1,5 +1,5 @@
 #include <11_hash_tables/inc/easy.h>
-#include <hashtable.h>
+#include <hashtable_naive.h>
 #include <iostream>
 #include <string>
 #include <vector>

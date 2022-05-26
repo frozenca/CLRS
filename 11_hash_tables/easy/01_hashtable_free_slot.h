@@ -1,7 +1,7 @@
 #ifndef __CLRS4_HASH_TABLE_FREE_SLOT_H__
 #define __CLRS4_HASH_TABLE_FREE_SLOT_H__
 
-#include <hashtable.h>
+#include <hashtable_naive.h>
 
 namespace frozenca {
 

@@ -2,534 +2,281 @@
 #define __CLRS4_LINKED_LIST_H__
 
 #include <common.h>
-#include <iostream>
-#include <type_traits>
+#include <concepts>
+#include <iterator>
 
-namespace frozenca {
+namespace frozenca::hard {
 
 using namespace std;
 
 template <typename T> class ListNode {
 public:
-  T key_;
+  T key_ = {};
   ListNode *prev_ = nullptr;
   ListNode *next_ = nullptr;
+  ListNode() = default; 
   ListNode(const T &key) : key_{key} {}
+  ListNode(const ListNode &other) = delete;
+  ListNode &operator=(const ListNode &other) = delete;
+};
+
+template <typename T, bool Const> class ListIterator {
+public:
+  using difference_type = ptrdiff_t;
+  using value_type = T;
+  using pointer = conditional_t<Const, const T*, T*>;
+  using reference = conditional_t<Const, const T&, T&>;
+  using iterator_category = bidirectional_iterator_tag;
+  using iterator_concept = iterator_category;
+  using node = ListNode<T>*;
+
+public: 
+  node node_ = nullptr;
+  
+  ListIterator() = default;
+  ListIterator(node node) : node_{node} {}
+
+  ListIterator(const ListIterator<T, false>& other) requires (Const) : node_{other.node_} {}
+
+  ListIterator(const ListIterator& other) = default;
+  ListIterator& operator=(const ListIterator& other) = default;
+  ListIterator (ListIterator&& other) noexcept = default;
+  ListIterator& operator=(ListIterator&& other) noexcept = default;
+
+  reference operator*() const noexcept {
+    return node_->key_;
+  }
+
+  pointer operator->() const noexcept {
+    return &(node_->key_);
+  }
+
+  ListIterator& operator++() {
+    node_ = node_->next_;
+    return *this;  
+  }
+
+  ListIterator operator++(int) {
+    ListIterator temp = *this;
+    node_ = node_->next_;
+    return temp;
+  }
+
+  ListIterator& operator--() {
+    node_ = node_->prev_;
+    return *this;  
+  }
+
+  ListIterator operator--(int) {
+    ListIterator temp = *this;
+    node_ = node_->prev_;
+    return temp;
+  }
+
+  [[nodiscard]] friend bool operator==(const ListIterator& lhs, const ListIterator& rhs) {
+    return lhs.node_ == rhs.node_;
+  }
+
+  node get_node() const {
+    return node_;
+  }
+  
 };
 
 template <typename T> class LinkedList {
   using Node = ListNode<T>;
 
-  Node *head_ = nullptr;
+  Node *head_ = nullptr; // sentinel node
+  ptrdiff_t size_ = 0;
 
 public:
-  LinkedList() = default;
-  LinkedList(const LinkedList &l) = default;
-  LinkedList &operator=(const LinkedList &l) = default;
-  LinkedList(LinkedList &&l) noexcept = default;
-  LinkedList &operator=(LinkedList &&l) noexcept = default;
+  using value_type = T;
+  using reference_type = T&;
+  using const_reference_type = const T&;
+  using iterator_type = ListIterator<T, false>;
+  using const_iterator_type = ListIterator<T, true>;
+  using reverse_iterator_type = reverse_iterator<iterator_type>;
+  using const_reverse_iterator_type = reverse_iterator<const_iterator_type>;
 
+  LinkedList() : head_(new Node()) {
+    head_->next_ = head_;
+    head_->prev_ = head_;
+  }
+  LinkedList(const LinkedList &l) : head_(new Node()) {
+    head_->next_ = head_;
+    head_->prev_ = head_;
+    for (const auto& val : l) {
+      push_back(val);
+    }
+  }
+  LinkedList &operator=(const LinkedList &l) {
+    clear();
+    for (const auto& val : l) {
+      push_back(val);
+    }
+    return *this;
+  }
+  LinkedList(LinkedList &&l) : head_{move(l.head_)} {}
+  LinkedList &operator=(LinkedList &&l) {
+    destroy();
+    head_ = move(l.head_);
+    return *this;
+  }
+
+private:
+  void destroy() {
+    head_->prev_->next_ = nullptr;
+    auto curr = head_->next_;
+    while (curr) {
+      auto next = curr->next_;
+      delete curr;
+      curr = next;
+    }
+    delete head_;
+  }
+
+public:
   ~LinkedList() {
-    auto node = head_;
-    while (node) {
-      auto next = node->next_;
-      delete node;
-      node = next;
-    }
+    destroy();
   }
 
-  Node *list_search(const T &key) const {
-    auto x = head_;
-    while (x && x->key_ != key) {
-      x = x->next_;
-    }
-    return x;
+  [[nodiscard]] reference_type front() noexcept {
+    return head_->next_->key_;
   }
 
-  void list_prepend(Node *x) {
-    if (!x) {
-      return;
-    }
-    x->next_ = head_;
-    x->prev_ = nullptr;
-    if (head_) {
-      head_->prev_ = x;
-    }
-    head_ = x;
+  [[nodiscard]] const_reference_type front() const noexcept {
+    return head_->next_->key_;
   }
 
-  void list_prepend(const T &key) {
-    auto x = new Node(key);
-    list_prepend(x);
+  [[nodiscard]] reference_type back() noexcept {
+    return head_->prev_->key_;
   }
 
-  static void list_insert(Node *x, Node *y) {
-    if (!x || !y) {
-      return;
-    }
-    x->next_ = y->next_;
-    x->prev_ = y;
-    if (y->next_) {
-      y->next_->prev_ = x;
-    }
-    y->next_ = x;
+  [[nodiscard]] const_reference_type prev() const noexcept {
+    return head_->prev_->key_;
   }
 
-  void list_insert(Node *y, const T &key) {
-    auto x = new Node(key);
-    list_insert(x, y);
+  [[nodiscard]] iterator_type begin() noexcept {
+    return iterator_type(head_->next_);
   }
 
-  void list_delete(Node *x) {
-    if (!x) {
-      return;
-    }
-    if (x->prev_) {
-      x->prev_->next_ = x->next_;
-    } else {
-      head_ = x->next_;
-    }
-    if (x->next_) {
-      x->next_->prev_ = x->prev_;
-    }
-    delete x;
+  [[nodiscard]] const_iterator_type begin() const noexcept {
+    return const_iterator_type(head_->next_);
   }
 
-  friend ostream &operator<<(ostream &os, const LinkedList &l) {
-    auto x = l.head_;
-    while (x) {
-      os << x->key_ << ' ';
-      x = x->next_;
-      if (x == l.head_) {
-        break;
-      }
-    }
-    return os;
-  }
-};
-
-template <typename K, typename V> class ListPairNode {
-public:
-  K key_;
-  V value_;
-  ListPairNode *prev_ = nullptr;
-  ListPairNode *next_ = nullptr;
-  ListPairNode(const pair<K, V> &x) : key_{x.first}, value_{x.second} {}
-};
-
-template <typename K, typename V, typename Node = ListPairNode<K, V>,
-          bool Own = true, bool Delete = true>
-class LinkedPairList {
-  Node *head_ = nullptr;
-
-public:
-  LinkedPairList() = default;
-
-  ~LinkedPairList() {
-    if constexpr (Own) {
-      auto node = head_;
-      while (node) {
-        auto next = node->next_;
-        delete node;
-        node = next;
-      }
-    }
+  [[nodiscard]] const_iterator_type cbegin() const noexcept {
+    return const_iterator_type(head_->next_);
   }
 
-  int length() const {
-    int len = 0;
-    auto node = head_;
-    while (node) {
-      node = node->next_;
-      len++;
-    }
-    return len;
+  [[nodiscard]] iterator_type end() noexcept {
+    return iterator_type(head_);
   }
 
-  V get_nth(int n) const {
-    auto x = head_;
-    for (int i = 0; i < n; ++i) {
-      x = x ? x->next_ : nullptr;
-    }
-    return x ? x->value_ : V{};
+  [[nodiscard]] const_iterator_type end() const noexcept {
+    return const_iterator_type(head_);
   }
 
-  Node *head() { return head_; }
-
-  const Node *head() const { return head_; }
-
-  V list_search(const K &key) const {
-    auto x = head_;
-    while (x && x->key_ != key) {
-      x = x->next_;
-    }
-    return x ? x->value_ : V{};
+  [[nodiscard]] const_iterator_type cend() const noexcept {
+    return const_iterator_type(head_);
   }
 
-  Node *list_search_node(const K &key) const {
-    auto x = head_;
-    while (x && x->key_ != key) {
-      x = x->next_;
-    }
-    return x;
+  [[nodiscard]] reverse_iterator_type rbegin() noexcept {
+    return reverse_iterator_type(end());
   }
 
-  bool list_contains(const K &key) const {
-    auto x = head_;
-    while (x && x->key_ != key) {
-      x = x->next_;
-    }
-    return x ? true : false;
+  [[nodiscard]] const_reverse_iterator_type rbegin() const noexcept {
+    return const_reverse_iterator_type(end());
   }
 
-  void list_prepend(Node *node) {
-    if (!node) {
-      return;
-    }
-    if constexpr (Own) {
-      node->next_ = head_;
-      node->prev_ = nullptr;
-    }
-    if (head_) {
-      head_->prev_ = node;
-    }
-    head_ = node;
+  [[nodiscard]] const_reverse_iterator_type crbegin() const noexcept {
+    return const_reverse_iterator_type(end());
   }
 
-  void list_prepend(const pair<K, V> &x) {
-    auto node = new Node(x);
-    list_prepend(node);
+  [[nodiscard]] reverse_iterator_type rend() noexcept {
+    return reverse_iterator_type(begin());
   }
 
-  void list_delete(Node *node) {
-    if (!node) {
-      return;
-    }
-    if (node->prev_) {
-      node->prev_->next_ = node->next_;
-    } else {
-      head_ = node->next_;
-    }
-    if (node->next_) {
-      node->next_->prev_ = node->prev_;
-    }
-    if constexpr (Own) {
-      node->prev_ = nullptr;
-      node->next_ = nullptr;
-    }
-    if constexpr (Delete) {
-      delete node;
-    }
+  [[nodiscard]] const_reverse_iterator_type rend() const noexcept {
+    return const_reverse_iterator_type(begin());
   }
 
-  void list_delete(const K &key) {
-    auto node = head_;
-    while (node && node->key_ != key) {
-      node = node->next_;
-    }
-    list_delete(node);
+  [[nodiscard]] const_reverse_iterator_type crend() const noexcept {
+    return const_reverse_iterator_type(begin());
   }
 
-  friend ostream &operator<<(ostream &os, const LinkedPairList &l) {
-    auto x = l.head_;
-    while (x) {
-      os << '[' << x->key_ << ", " << x->value_ << "] ";
-      x = x->next_;
-      if (x == l.head_) {
-        break;
-      }
-    }
-    return os;
+  [[nodiscard]] bool empty() const noexcept {
+    return size_ == 0;
   }
-};
 
-template <typename K, typename V> class LinkedPairSortedList {
-  using Node = ListPairNode<K, V>;
+  [[nodiscard]] ptrdiff_t size() const noexcept {
+    return size_;
+  }
 
-  Node *head_ = nullptr;
+  void clear() noexcept {
+    head_->prev_->next_ = nullptr;
+    auto curr = head_->next_;
+    while (curr) {
+      auto next = curr->next_;
+      delete curr;
+      curr = next;
+    }
+    head_->next_ = head_;
+    head_->prev_ = head_;
+    size_ = 0;
+  }
+
+private:
+  void insert_before(Node* where, const T& value) {
+    auto node = new Node(value);
+    node->next_ = where;
+    node->prev_ = where->prev_;
+    where->prev_->next_ = node;
+    where->prev_ = node;
+    ++size_;
+  }
+
+  void erase_at(Node* where) {
+    where->prev_->next_ = where->next_;
+    where->next_->prev_ = where->prev_;
+    delete where;
+    --size_;
+  }
 
 public:
-  LinkedPairSortedList() = default;
-
-  ~LinkedPairSortedList() {
-    auto node = head_;
-    while (node) {
-      auto next = node->next_;
-      delete node;
-      node = next;
-    }
+  iterator_type insert(const_iterator_type pos, const T& value) {
+    auto where = pos.get_node();
+    insert_before(where, value);
+    return iterator_type(where->prev_);
   }
 
-  V list_search(const K &key) const {
-    auto x = head_;
-    while (x && x->key_ != key) {
-      x = x->next_;
+  iterator_type erase(iterator_type pos) {
+    auto where = pos.get_node();
+    if (where == head_) {
+      throw invalid_argument("attempt to erase at end()\n");
     }
-    return x ? x->value_ : V{};
+    auto next = where->next_;
+    erase_at(where);
+    return iterator_type(next);
   }
 
-  void list_prepend(Node *node) {
-    if (!node) {
-      return;
-    }
-    auto x = head_;
-    while (x && x->key_ < node->key_) {
-      x = x->next_;
-    }
-    node->next_ = x;
-    if (x) {
-      node->prev_ = x->prev_;
-      x->prev_ = node;
-      if (x == head_) {
-        head_ = node;
-      }
-    } else {
-      head_ = node;
-    }
+  void push_back(const T& value) {
+    insert_before(head_, value);
   }
 
-  void list_prepend(const pair<K, V> &x) {
-    auto node = new Node(x);
-    list_prepend(node);
+  void push_front(const T& value) {
+    insert_before(head_->next_, value);
   }
 
-  void list_delete(Node *node) {
-    if (!node) {
-      return;
-    }
-    if (node->prev_) {
-      node->prev_->next_ = node->next_;
-    } else {
-      head_ = node->next_;
-    }
-    if (node->next_) {
-      node->next_->prev_ = node->prev_;
-    }
-    delete node;
+  void pop_back() {
+    erase_at(head_->prev_);
   }
 
-  void list_delete(const K &key) {
-    auto node = head_;
-    while (node && node->key_ != key) {
-      node = node->next_;
-    }
-    list_delete(node);
+  void pop_front() {
+    erase_at(head_->next_);
   }
 
-  friend ostream &operator<<(ostream &os, const LinkedPairSortedList &l) {
-    auto x = l.head_;
-    while (x) {
-      os << '[' << x->key_ << ", " << x->value_ << "] ";
-      x = x->next_;
-      if (x == l.head_) {
-        break;
-      }
-    }
-    return os;
-  }
 };
 
-template <typename T> class LinkedListSentinel {
-  using Node = ListNode<T>;
-
-  Node *nil_ = nullptr;
-
-public:
-  LinkedListSentinel() : nil_{new Node(T{})} {
-    nil_->prev_ = nil_;
-    nil_->next_ = nil_;
-  }
-
-  LinkedListSentinel(const LinkedListSentinel &l) {
-    nil_ = new Node(T{});
-    if (l.nil_->prev_ != l.nil_) {
-      nil_->prev_ = l.nil_->prev_;
-      nil_->prev_->next_ = nil_;
-    }
-    if (l.nil_->next_ != l.nil_) {
-      nil_->next_ = l.nil_->next_;
-      nil_->next_->prev_ = nil_;
-    }
-  }
-  LinkedListSentinel &operator=(const LinkedListSentinel &l) {
-    if (l.nil_->prev_ != l.nil_) {
-      nil_->prev_ = l.nil_->prev_;
-      nil_->prev_->next_ = nil_;
-    }
-    if (l.nil_->next_ != l.nil_) {
-      nil_->next_ = l.nil_->next_;
-      nil_->next_->prev_ = nil_;
-    }
-    return *this;
-  }
-  LinkedListSentinel(LinkedListSentinel &&l) noexcept {
-    nil_ = new Node(T{});
-    if (l.nil_->prev_ != l.nil_) {
-      nil_->prev_ = l.nil_->prev_;
-      nil_->prev_->next_ = nil_;
-    }
-    if (l.nil_->next_ != l.nil_) {
-      nil_->next_ = l.nil_->next_;
-      nil_->next_->prev_ = nil_;
-    }
-    l.nil_->next_ = l.nil_;
-    l.nil_->prev_ = l.nil_;
-  }
-  LinkedListSentinel &operator=(LinkedListSentinel &&l) noexcept {
-    if (l.nil_->prev_ != l.nil_) {
-      nil_->prev_ = l.nil_->prev_;
-      nil_->prev_->next_ = nil_;
-    }
-    if (l.nil_->next_ != l.nil_) {
-      nil_->next_ = l.nil_->next_;
-      nil_->next_->prev_ = nil_;
-    }
-    l.nil_->next_ = l.nil_;
-    l.nil_->prev_ = l.nil_;
-    return *this;
-  }
-
-  ~LinkedListSentinel() {
-    auto node = nil_->next_;
-    while (node != nil_) {
-      auto next = node->next_;
-      delete node;
-      node = next;
-    }
-    delete nil_;
-  }
-
-  void list_prepend(Node *x) {
-    if (!x) {
-      return;
-    }
-    x->next_ = nil_->next_;
-    x->prev_ = nil_;
-    nil_->next_->prev_ = x;
-    nil_->next_ = x;
-  }
-
-  void list_prepend(const T &key) {
-    auto x = new Node(key);
-    list_prepend(x);
-  }
-
-  Node *list_search(const T &key) const {
-    nil_->key_ =
-        key; // store the key in the sentinel to guarantee it is in list
-    auto x = nil_->next_; // start at the head of the list
-    while (x->key_ != key) {
-      x = x->next_;
-    }
-    if (x == nil_) {  // found k in the sentinel
-      return nullptr; // k was not really in the list
-    } else {
-      return x; // found k in element x
-    }
-  }
-
-  static void list_insert(Node *x, Node *y) {
-    if (!x || !y) {
-      return;
-    }
-    x->next_ = y->next_;
-    x->prev_ = y;
-    y->next_->prev_ = x;
-    y->next_ = x;
-  }
-
-  void list_insert(Node *y, const T &key) {
-    auto x = new Node(key);
-    list_insert(x, y);
-  }
-
-  void list_delete(Node *x) {
-    if (!x) {
-      return;
-    }
-    x->prev_->next_ = x->next_;
-    x->next_->prev_ = x->prev_;
-    delete x;
-  }
-
-  friend ostream &operator<<(ostream &os, const LinkedListSentinel &l) {
-    auto x = l.nil_->next_;
-    while (x) {
-      os << x->key_ << ' ';
-      x = x->next_;
-      if (x == l.nil_) {
-        break;
-      }
-    }
-    return os;
-  }
-
-  void list_reverse() {
-    {
-      auto a = nil_;
-      auto b = nil_->next_;
-      while (b != nil_) {
-        auto c = b->next_;
-        b->next_ = a;
-        a = b;
-        b = c;
-      }
-      nil_->next_ = a;
-    }
-    {
-      auto a = nil_;
-      auto b = nil_->prev_;
-      while (b != nil_) {
-        auto c = b->prev_;
-        b->prev_ = a;
-        a = b;
-        b = c;
-      }
-      nil_->prev_ = a;
-    }
-  }
-
-  template <typename T>
-  friend LinkedListSentinel<T> list_union(LinkedListSentinel<T> &l1,
-                                          LinkedListSentinel<T> &l2);
-};
-
-template <typename T>
-LinkedListSentinel<T> list_union(LinkedListSentinel<T> &l1,
-                                 LinkedListSentinel<T> &l2) {
-  LinkedListSentinel<T> l;
-  auto head1 = l1.nil_->next_;
-  auto tail1 = l1.nil_->prev_;
-  auto head2 = l2.nil_->next_;
-  auto tail2 = l2.nil_->prev_;
-
-  l1.nil_->next_ = l1.nil_;
-  l1.nil_->prev_ = l1.nil_;
-
-  l2.nil_->next_ = l2.nil_;
-  l2.nil_->prev_ = l2.nil_;
-
-  if (head1 != l1.nil_) {
-    l.nil_->next_ = head1;
-    head1->prev_ = l.nil_;
-  }
-
-  if (tail1 != l1.nil_) {
-    tail1->next_ = (head2 != l2.nil_) ? head2 : l.nil_;
-  }
-
-  if (head2 != l2.nil_) {
-    head2->prev_ = (tail1 != l1.nil_) ? tail1 : l.nil_;
-  }
-
-  if (tail2 != l2.nil_) {
-    tail2->next_ = l.nil_;
-    l.nil_->prev_ = tail2;
-  }
-
-  return l;
-}
-
-} // namespace frozenca
+} // namespace frozenca::hard
 
 #endif //__CLRS4_LINKED_LIST_H__

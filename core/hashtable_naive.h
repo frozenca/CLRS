@@ -1,12 +1,12 @@
-#ifndef __CLRS4_HASH_TABLE_H__
-#define __CLRS4_HASH_TABLE_H__
+#ifndef __CLRS4_HASH_TABLE_NAIVE_H__
+#define __CLRS4_HASH_TABLE_NAIVE_H__
 
 #include <array>
 #include <common.h>
 #include <concepts>
 #include <functional>
 #include <iostream>
-#include <linkedlist.h>
+#include <linkedlist_naive.h>
 #include <random>
 #include <type_traits>
 #include <utility>
@@ -72,4 +72,4 @@ public:
 
 } // namespace frozenca
 
-#endif //__CLRS4_HASH_TABLE_H__
+#endif //__CLRS4_HASH_TABLE_NAIVE_H__

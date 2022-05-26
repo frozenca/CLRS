@@ -1,4 +1,4 @@
-#include <hashtable.h>
+#include <hashtable_naive.h>
 #include <iostream>
 
 int main() {
