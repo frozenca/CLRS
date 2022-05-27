@@ -82,35 +82,15 @@ public:
   HashTable() = default;
   ~HashTable() = default;
 
-private:
-  void clone_buckets(const Buckets &other_buckets) {
-    // clone bucket iterator pairs one by one
-    // precondition: values_ are already cloned
-    auto this_bucket_curr = values_.begin();
-
-    buckets_.clear();
-    buckets_.reserve(other_buckets.size());
-    for (size_t i = 0; i < other_buckets.size(); i += 2) {
-      auto this_bucket_begin = this_bucket_curr;
-      auto other_bucket_curr = other_buckets[i];
-      while (other_bucket_curr != other_buckets[i + 1]) {
-        ++this_bucket_curr;
-        ++other_bucket_curr;
-      }
-      auto this_bucket_end = this_bucket_curr;
-      buckets_.push_back(this_bucket_begin);
-      buckets_.push_back(this_bucket_end);
-    }
-    assert(this_bucket_curr == values_.end());
-  }
-
 public:
   HashTable(const HashTable &other) : values_{other.values_} {
-    clone_buckets(other.buckets_);
+    buckets_.clear();
+    rehash(other.bucket_count());
   }
   HashTable &operator=(const HashTable &other) {
     values_ = other.values_;
-    clone_buckets(other.buckets_);
+    buckets_.clear();
+    rehash(other.bucket_count());
     return *this;
   }
   HashTable(HashTable &&other) noexcept = default;
