@@ -7,10 +7,6 @@ namespace frozenca::hard {
 
 using namespace std;
 
-inline constexpr size_t halfswap(size_t k) {
-  return (k >> size_half()) + (k << size_half());
-}
-
 template <size_t a> struct WeeFBase {
   constexpr size_t operator()(size_t k) const {
     return halfswap(2 * k * k + a * k);

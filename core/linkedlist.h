@@ -7,7 +7,8 @@ namespace frozenca::hard {
 
 using namespace std;
 
-template <typename T> class ListNode {
+namespace detail {
+template <Containable T> class ListNode {
 public:
   T key_;
   ListNode *prev_ = nullptr;
@@ -17,40 +18,36 @@ public:
   ListNode &operator=(const ListNode &other) = delete;
 };
 
-template <typename T, bool Const> class ListIterator {
+template <Containable T, bool Const> class ListIterator {
 public:
   using difference_type = ptrdiff_t;
   using value_type = T;
-  using pointer = conditional_t<Const, const T*, T*>;
-  using reference = conditional_t<Const, const T&, T&>;
+  using pointer = conditional_t<Const, const T *, T *>;
+  using reference = conditional_t<Const, const T &, T &>;
   using iterator_category = bidirectional_iterator_tag;
   using iterator_concept = iterator_category;
   using Node = ListNode<T>;
 
-public: 
-  Node* node_ = nullptr;
-  
+public:
+  Node *node_ = nullptr;
+
   ListIterator() = default;
-  ListIterator(Node* node) : node_{node} {}
+  ListIterator(Node *node) : node_{node} {}
 
-  ListIterator(const ListIterator<T, false>& other) requires (Const) : node_{other.node_} {}
+  ListIterator(const ListIterator<T, !Const> &other) : node_{other.node_} {}
 
-  ListIterator(const ListIterator& other) = default;
-  ListIterator& operator=(const ListIterator& other) = default;
-  ListIterator (ListIterator&& other) noexcept = default;
-  ListIterator& operator=(ListIterator&& other) noexcept = default;
+  ListIterator(const ListIterator &other) = default;
+  ListIterator &operator=(const ListIterator &other) = default;
+  ListIterator(ListIterator &&other) noexcept = default;
+  ListIterator &operator=(ListIterator &&other) noexcept = default;
 
-  reference operator*() const noexcept {
-    return node_->key_;
-  }
+  reference operator*() const noexcept { return node_->key_; }
 
-  pointer operator->() const noexcept {
-    return &(node_->key_);
-  }
+  pointer operator->() const noexcept { return &(node_->key_); }
 
-  ListIterator& operator++() {
+  ListIterator &operator++() {
     node_ = node_->next_;
-    return *this;  
+    return *this;
   }
 
   ListIterator operator++(int) {
@@ -59,9 +56,9 @@ public:
     return temp;
   }
 
-  ListIterator& operator--() {
+  ListIterator &operator--() {
     node_ = node_->prev_;
-    return *this;  
+    return *this;
   }
 
   ListIterator operator--(int) {
@@ -70,44 +67,50 @@ public:
     return temp;
   }
 
-  [[nodiscard]] friend bool operator==(const ListIterator& lhs, const ListIterator& rhs) {
+  [[nodiscard]] friend bool operator==(const ListIterator &lhs,
+                                       const ListIterator &rhs) {
     return lhs.node_ == rhs.node_;
   }
-
-  Node* get_node() const {
-    return node_;
-  }
-  
 };
 
-template <typename T> class LinkedList {
-  using Node = ListNode<T>;
+} // namespace detail
+
+template <Containable T> class LinkedList {
+  using Node = detail::ListNode<T>;
 
   Node *head_; // sentinel node
   ptrdiff_t size_ = 0;
 
 public:
   using value_type = T;
-  using reference_type = T&;
-  using const_reference_type = const T&;
-  using iterator_type = ListIterator<T, false>;
-  using const_iterator_type = ListIterator<T, true>;
+  using reference_type = T &;
+  using const_reference_type = const T &;
+  using iterator_type = detail::ListIterator<T, false>;
+  using const_iterator_type = detail::ListIterator<T, true>;
   using reverse_iterator_type = reverse_iterator<iterator_type>;
   using const_reverse_iterator_type = reverse_iterator<const_iterator_type>;
 
-  LinkedList() {
-    construct();
-  }
+  LinkedList() { construct(); }
   LinkedList(const LinkedList &l) {
     construct();
-    for (const auto& val : l) {
-      push_back(val);
+    try {
+      for (const auto &val : l) {
+        push_back(val);
+      }
+    } catch (exception& e){ 
+      clear();
+      throw e;
     }
   }
   LinkedList &operator=(const LinkedList &l) {
     clear();
-    for (const auto& val : l) {
-      push_back(val);
+    try {
+      for (const auto &val : l) {
+        push_back(val);
+      }
+    } catch (exception& e){ 
+      clear();
+      throw e;
     }
     return *this;
   }
@@ -143,9 +146,7 @@ private:
   }
 
 public:
-  ~LinkedList() {
-    destroy();
-  }
+  ~LinkedList() { destroy(); }
 
   [[nodiscard]] reference_type front() {
     if (head_->next_ == head_) {
@@ -187,9 +188,7 @@ public:
     return const_iterator_type(head_->next_);
   }
 
-  [[nodiscard]] iterator_type end() noexcept {
-    return iterator_type(head_);
-  }
+  [[nodiscard]] iterator_type end() noexcept { return iterator_type(head_); }
 
   [[nodiscard]] const_iterator_type end() const noexcept {
     return const_iterator_type(head_);
@@ -223,13 +222,9 @@ public:
     return const_reverse_iterator_type(begin());
   }
 
-  [[nodiscard]] bool empty() const noexcept {
-    return size_ == 0;
-  }
+  [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
 
-  [[nodiscard]] ptrdiff_t size() const noexcept {
-    return size_;
-  }
+  [[nodiscard]] ptrdiff_t size() const noexcept { return size_; }
 
   void clear() noexcept {
     head_->prev_->next_ = nullptr;
@@ -245,7 +240,7 @@ public:
   }
 
 private:
-  void insert_before(Node* where, const T& value) {
+  void insert_before(Node *where, const T &value) {
     assert(where);
     auto node = new Node(value);
     node->next_ = where;
@@ -255,7 +250,7 @@ private:
     ++size_;
   }
 
-  void erase_at(Node* where) {
+  void erase_at(Node *where) {
     assert(where && where->prev_ && where->next_);
     if (where == head_) {
       throw invalid_argument("attempt to erase at end()\n");
@@ -267,35 +262,41 @@ private:
   }
 
 public:
-  iterator_type insert(const_iterator_type pos, const T& value) {
-    auto where = pos.get_node();
+  iterator_type insert(const_iterator_type pos, const T &value) {
+    auto where = pos.node_;
     insert_before(where, value);
     return iterator_type(where->prev_);
   }
 
   iterator_type erase(iterator_type pos) {
-    auto where = pos.get_node();
+    auto where = pos.node_;
     auto next = where->next_;
     erase_at(where);
     return iterator_type(next);
   }
 
-  void push_back(const T& value) {
-    insert_before(head_, value);
+  void splice(const_iterator_type pos, const_iterator_type first_iter, const_iterator_type last_iter) {
+    auto where = pos.node_;
+    auto first = first_iter.node_;
+    auto last = last_iter.node_;
+
+    first->prev_->next_ = last;
+    last->prev_->next_ = where;
+    where->prev_->next_ = first;
+
+    auto prev = where->prev_;
+    where->prev_ = last->prev_;
+    last->prev_ = first->prev_;
+    first->prev_ = prev;
   }
 
-  void push_front(const T& value) {
-    insert_before(head_->next_, value);
-  }
+  void push_back(const T &value) { insert_before(head_, value); }
 
-  void pop_back() {
-    erase_at(head_->prev_);
-  }
+  void push_front(const T &value) { insert_before(head_->next_, value); }
 
-  void pop_front() {
-    erase_at(head_->next_);
-  }
+  void pop_back() { erase_at(head_->prev_); }
 
+  void pop_front() { erase_at(head_->next_); }
 };
 
 } // namespace frozenca::hard

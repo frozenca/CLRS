@@ -24,7 +24,16 @@ using uindex_t = make_unsigned_t<index_t>;
 
 namespace {
 
-constexpr size_t arr_default_length = 128;
+template <typename T>
+concept Scalar = is_scalar_v<T>;
+
+template <typename T>
+concept Containable = is_same_v<remove_cvref_t<T>, T>;
+
+template <typename H, typename K>
+concept Hashable = requires(H h, K k) {
+  { h(k) } -> convertible_to<size_t>;
+};
 
 inline constexpr size_t size_bytes() {
   if constexpr (numeric_limits<size_t>::max() == 0xFFFF) {
@@ -50,9 +59,7 @@ inline constexpr size_t halfswap(size_t k) {
   return (k >> size_half()) + (k << size_half());
 }
 
-template <typename T>
-concept Scalar = is_scalar_v<T>;
-
+constexpr size_t arr_default_length = 128;
 constexpr size_t hashtable_default_width = 14u;
 constexpr size_t hashtable_default_length = (1u << hashtable_default_width);
 

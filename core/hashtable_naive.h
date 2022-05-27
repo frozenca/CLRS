@@ -15,11 +15,6 @@ namespace frozenca {
 
 using namespace std;
 
-template <typename H, typename K>
-concept Hashable = requires(H h, K k) {
-  { h(k) } -> convertible_to<size_t>;
-};
-
 template <typename K, size_t N = hashtable_default_length>
 struct HashFunctionDefault {
   size_t operator()(const K &key) const { return hash<K>{}(key) % N; }
