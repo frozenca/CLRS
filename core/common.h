@@ -10,6 +10,7 @@
 #include <limits>
 #include <memory>
 #include <ranges>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 
@@ -35,7 +36,6 @@ inline constexpr size_t size_bytes() {
   }
 }
 
-
 inline constexpr size_t size_half() {
   if constexpr (numeric_limits<size_t>::max() == 0xFFFF) {
     return 8;
@@ -45,6 +45,13 @@ inline constexpr size_t size_half() {
     return 32;
   }
 }
+
+inline constexpr size_t halfswap(size_t k) {
+  return (k >> size_half()) + (k << size_half());
+}
+
+template <typename T>
+concept Scalar = is_scalar_v<T>;
 
 constexpr size_t hashtable_default_width = 14u;
 constexpr size_t hashtable_default_length = (1u << hashtable_default_width);

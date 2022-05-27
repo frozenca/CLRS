@@ -2,8 +2,6 @@
 #define __CLRS4_LINKED_LIST_H__
 
 #include <common.h>
-#include <concepts>
-#include <iterator>
 
 namespace frozenca::hard {
 
@@ -11,10 +9,9 @@ using namespace std;
 
 template <typename T> class ListNode {
 public:
-  T key_ = {};
+  T key_;
   ListNode *prev_ = nullptr;
   ListNode *next_ = nullptr;
-  ListNode() = default; 
   ListNode(const T &key) : key_{key} {}
   ListNode(const ListNode &other) = delete;
   ListNode &operator=(const ListNode &other) = delete;
@@ -28,13 +25,13 @@ public:
   using reference = conditional_t<Const, const T&, T&>;
   using iterator_category = bidirectional_iterator_tag;
   using iterator_concept = iterator_category;
-  using node = ListNode<T>*;
+  using Node = ListNode<T>;
 
 public: 
-  node node_ = nullptr;
+  Node* node_ = nullptr;
   
   ListIterator() = default;
-  ListIterator(node node) : node_{node} {}
+  ListIterator(Node* node) : node_{node} {}
 
   ListIterator(const ListIterator<T, false>& other) requires (Const) : node_{other.node_} {}
 
@@ -77,7 +74,7 @@ public:
     return lhs.node_ == rhs.node_;
   }
 
-  node get_node() const {
+  Node* get_node() const {
     return node_;
   }
   
@@ -86,7 +83,7 @@ public:
 template <typename T> class LinkedList {
   using Node = ListNode<T>;
 
-  Node *head_ = nullptr; // sentinel node
+  Node *head_; // sentinel node
   ptrdiff_t size_ = 0;
 
 public:
@@ -98,13 +95,11 @@ public:
   using reverse_iterator_type = reverse_iterator<iterator_type>;
   using const_reverse_iterator_type = reverse_iterator<const_iterator_type>;
 
-  LinkedList() : head_(new Node()) {
-    head_->next_ = head_;
-    head_->prev_ = head_;
+  LinkedList() {
+    construct();
   }
-  LinkedList(const LinkedList &l) : head_(new Node()) {
-    head_->next_ = head_;
-    head_->prev_ = head_;
+  LinkedList(const LinkedList &l) {
+    construct();
     for (const auto& val : l) {
       push_back(val);
     }
@@ -116,14 +111,25 @@ public:
     }
     return *this;
   }
-  LinkedList(LinkedList &&l) : head_{move(l.head_)} {}
-  LinkedList &operator=(LinkedList &&l) {
+  LinkedList(LinkedList &&l) noexcept : head_{move(l.head_)}, size_{l.size_} {
+    l.construct();
+  }
+  LinkedList &operator=(LinkedList &&l) noexcept {
     destroy();
     head_ = move(l.head_);
+    size_ = l.size_;
+    l.construct();
     return *this;
   }
 
 private:
+  void construct() {
+    head_ = allocator<Node>{}.allocate(1);
+    head_->next_ = head_;
+    head_->prev_ = head_;
+    size_ = 0;
+  }
+
   void destroy() {
     head_->prev_->next_ = nullptr;
     auto curr = head_->next_;
@@ -132,7 +138,8 @@ private:
       delete curr;
       curr = next;
     }
-    delete head_;
+    allocator<Node>{}.deallocate(head_, 1);
+    size_ = 0;
   }
 
 public:
@@ -140,19 +147,31 @@ public:
     destroy();
   }
 
-  [[nodiscard]] reference_type front() noexcept {
+  [[nodiscard]] reference_type front() {
+    if (head_->next_ == head_) {
+      throw runtime_error("List is empty\n");
+    }
     return head_->next_->key_;
   }
 
-  [[nodiscard]] const_reference_type front() const noexcept {
+  [[nodiscard]] const_reference_type front() const {
+    if (head_->next_ == head_) {
+      throw runtime_error("List is empty\n");
+    }
     return head_->next_->key_;
   }
 
-  [[nodiscard]] reference_type back() noexcept {
+  [[nodiscard]] reference_type back() {
+    if (head_->prev_ == head_) {
+      throw runtime_error("List is empty\n");
+    }
     return head_->prev_->key_;
   }
 
-  [[nodiscard]] const_reference_type prev() const noexcept {
+  [[nodiscard]] const_reference_type back() const {
+    if (head_->prev_ == head_) {
+      throw runtime_error("List is empty\n");
+    }
     return head_->prev_->key_;
   }
 
@@ -215,7 +234,7 @@ public:
   void clear() noexcept {
     head_->prev_->next_ = nullptr;
     auto curr = head_->next_;
-    while (curr) {
+    while (curr && curr != head_) {
       auto next = curr->next_;
       delete curr;
       curr = next;
@@ -227,6 +246,7 @@ public:
 
 private:
   void insert_before(Node* where, const T& value) {
+    assert(where);
     auto node = new Node(value);
     node->next_ = where;
     node->prev_ = where->prev_;
@@ -236,6 +256,10 @@ private:
   }
 
   void erase_at(Node* where) {
+    assert(where && where->prev_ && where->next_);
+    if (where == head_) {
+      throw invalid_argument("attempt to erase at end()\n");
+    }
     where->prev_->next_ = where->next_;
     where->next_->prev_ = where->prev_;
     delete where;
@@ -251,9 +275,6 @@ public:
 
   iterator_type erase(iterator_type pos) {
     auto where = pos.get_node();
-    if (where == head_) {
-      throw invalid_argument("attempt to erase at end()\n");
-    }
     auto next = where->next_;
     erase_at(where);
     return iterator_type(next);
