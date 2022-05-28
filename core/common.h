@@ -28,6 +28,12 @@ template <typename T>
 concept Scalar = is_scalar_v<T>;
 
 template <typename T>
+concept SpanType = !Scalar<T> && requires(T t) {
+  t.data();
+  t.size();
+};
+
+template <typename T>
 concept Containable = is_same_v<remove_cvref_t<T>, T>;
 
 template <typename H, typename K>
@@ -53,10 +59,6 @@ inline constexpr size_t size_half() {
   } else {
     return 32;
   }
-}
-
-inline constexpr size_t halfswap(size_t k) {
-  return (k >> size_half()) + (k << size_half());
 }
 
 constexpr size_t arr_default_length = 128;

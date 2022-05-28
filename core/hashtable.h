@@ -32,10 +32,13 @@ class HashTable {
   using ListIter = ListIterator<V, is_set_>;
 
   // invariant: buckets_.size() == 0 or must be a power of 2
-  // each "bucket" is a pair of two ListIter [begin, end)
-  // invariant: begin <= end, and all iterators between begin and end
-  // points to elements with the same hash value, with keys in sorted order.
-  using Buckets = vector<ListIter>;
+  // each "bucket" is a pair of two ListNode* [begin, before_end]
+  // this is inclusive range to minimize invocation of Hasher{}().
+  // invariant: for empty bucket, begin == before_end == nullptr
+  // invariant: for nonempty bucket, begin <= before_end,
+  //  and all node pointers between points to elements
+  // with the same hash value, with keys in sorted order.
+  using Buckets = vector<Node *>;
   Buckets buckets_;
 
   // invariant: buckets.size() == 0 or bucket_mask_ == buckets_.size() - 1
@@ -44,30 +47,20 @@ class HashTable {
   static constexpr size_t growth_factor_early_ = 4UL;
   static constexpr size_t growth_factor_ = 2UL;
 
-  // ideally, this should be equal to half of the initial nonempty capacity of std::vector...
+  // ideally, this should be equal to half of the initial nonempty capacity of
+  // std::vector...
   static constexpr size_t initial_nonempty_bucket_count_ = 8UL;
   static constexpr size_t bucket_count_threshold_ = 128UL;
 
   static constexpr float max_load_factor_ = 1.0f;
 
-  struct KeyProj {
-    K operator()(const V &value) const noexcept {
-      if constexpr (is_set_) {
-        return value;
-      } else {
-        return value.first;
-      }
-    }
-  };
-
-  size_t get_hash(const K &key) const noexcept { return Hasher{}(key); }
-
-  size_t bucket_from_key(const K &key) const noexcept {
-    return get_hash(key) & bucket_mask_;
+  // note that each invocation of Hasher{}(key) copies key every time!
+  size_t bucket(const K &key) const noexcept {
+    return Hasher{}(key)&bucket_mask_;
   }
 
-  size_t bucket(const V &value) const noexcept {
-    return bucket_from_key(KeyProj{}(value));
+  size_t bucket(const V &value) const noexcept requires(!is_set_) {
+    return bucket(value.first);
   }
 
 public:
@@ -155,124 +148,165 @@ private:
           return {true, bucket_count() * growth_factor_};
         }
       } else {
-        return {false, 0};
+        return {false, 0UL};
       }
     }
+  }
+
+  // find insertion point in inclusive range [lo, hi]
+  // and whether there is already the same key
+  pair<const_iterator_type, bool> find_insertion_point(Node *lo, Node *hi,
+                                          const K &key) const noexcept {
+    assert(lo && hi && hi != end().node_);
+    auto curr = lo; // this is Node*, not iterator_type
+    while (true) {
+      if (curr->key_ >= key) {
+        return {const_iterator_type(curr), curr->key_ == key};
+      } else if (curr == hi) {
+        return {const_iterator_type(hi->next_), false};
+      }
+      curr = curr->next_;
+    }
+  }
+
+  // from first, find the first iterator which has the first different key
+  // and that bucket index (to cache it)
+  pair<iterator_type, size_t>
+  find_next_key(iterator_type first) const noexcept {
+    assert(first != end());
+    auto iter = first;
+    ++iter;
+    while (iter != end()) {
+      if (*iter != *first) {
+        return {iter, bucket(*iter)};
+      }
+      ++iter;
+    }
+    return {end(), static_cast<size_t>(-1)};
   }
 
   void rehash(size_t next_bucket_size) {
     assert(has_single_bit(next_bucket_size));
-    buckets_.assign(next_bucket_size << 1, end());
+    buckets_.assign(next_bucket_size << 1, nullptr);
 
     bucket_mask_ = next_bucket_size - 1;
 
     auto curr_it = begin();
-    auto end_it = end();
 
-    while (curr_it != end_it) {
-      auto value = *curr_it;
-      auto bucket_index = bucket(value);
-      auto next_it = next(curr_it);
+    size_t cached_bucket_index = 0;
+    bool cached = false;
+
+    while (curr_it != end()) {
+      auto bucket_index = cached ? cached_bucket_index : bucket(*curr_it);
+      auto [next_it, next_bucket_index] = find_next_key(curr_it);
+      cached = true;
+      cached_bucket_index = next_bucket_index;
 
       auto &lo = buckets_[(bucket_index << 1)];
       auto &hi = buckets_[(bucket_index << 1) + 1];
 
-      if (lo == hi) {
-        assert(lo == end() && hi == end());
-        lo = curr_it;
-        hi = next_it;
-        curr_it = next_it;
-        continue;
-      }
-
-      // insertion point
-      auto it = ranges::lower_bound(lo, hi, value, less<K>{}, KeyProj{});
-      assert(it != next_it);
-      if (it == curr_it) {
-        assert(it == hi && hi != end());
-        ++hi;
-      } else if (it == lo) {
-        assert(it != begin());
-        auto &prev_hi = buckets_[(bucket(*prev(it)) << 1) + 1];
-        assert(prev_hi == lo);
-        values_.splice(it, curr_it, next_it);
-        lo = curr_it;
-        prev_hi = lo;
-      } else {
-        assert(hi != end());
-        auto &next_hi = buckets_[(bucket(*hi) << 1) + 1];
-        if (next_hi == curr_it) {
-          ++next_hi;
+      if (!lo) { // empty bucket
+        assert(!hi);
+        lo = curr_it.node_;
+        hi = next_it.node_->prev_;
+      } else { // find insertion point
+        auto [where, unuse] = find_insertion_point(lo, hi, *curr_it);
+        bool to_prepend = (where.node_ == lo);
+        bool to_append = (where.node_ == hi->next_);
+        assert(where != next_it);
+        if (where == curr_it) {
+          assert(!to_prepend && to_append);
+          // don't splice, just adjust hi
+          hi = where.node_;
+        } else {
+          values_.splice(where, curr_it, next_it);
+          if (to_prepend) {
+            lo = curr_it.node_;
+          }
+          if (to_append) {
+            hi = where.node_->prev_;
+          }
         }
-        values_.splice(it, curr_it, next_it);
+        
       }
-
       curr_it = next_it;
     }
   }
 
-  iterator_type find_key_in_bucket(size_t bucket_index,
-                                   const K &key) const noexcept {
-    auto value = [&]() {
-      if constexpr (is_set_) {
-        return key;
-      } else {
-        return V{key, key};
-      }
-    };
-    return find_in_bucket(bucket_index, value());
-  }
-
   iterator_type find_in_bucket(size_t bucket_index,
-                               const V &value) const noexcept {
+                               const K &key) const noexcept {
     auto lo = buckets_[bucket_index << 1];
     auto hi = buckets_[(bucket_index << 1) + 1];
-    auto it = ranges::lower_bound(lo, hi, value, less<K>{}, KeyProj{});
-    if (it == hi || (value != *it)) {
+    if (!lo) { // empty bucket
       return end();
-    } else {
-      return it;
+    }
+    auto curr = lo;
+    while (true) {
+      if (curr->key_ == key) {
+        return iterator_type(curr);
+      } else if (curr->key_ > key || curr == hi) { // not found
+        return end();
+      }
+      curr = curr->next_;
     }
   }
 
-  size_t erase_key_from_bucket(size_t bucket_index, const K &key) {
-    auto lo = buckets_[bucket_index << 1];
-    auto hi = buckets_[(bucket_index << 1) + 1];
-    auto value = [&]() {
-      if constexpr (is_set_) {
-        return key;
-      } else {
-        return V{key, key};
-      }
-    };
-    auto it = ranges::lower_bound(lo, hi, value(), less<K>{}, KeyProj{});
-    if (it == hi || (value() != *it)) {
+  size_t erase_from_bucket(size_t bucket_index, const K &key) {
+    auto &lo = buckets_[bucket_index << 1];
+    auto &hi = buckets_[(bucket_index << 1) + 1];
+    if (!lo) { // empty bucket
       return 0;
-    } else {
-      erase_from_bucket(bucket_index, it);
+    }
+    auto curr = lo;
+    while (true) {
+      if (curr->key_ == key) { // found starting point
+        break;
+      } else if (curr->key_ > key || curr == hi) { // not found
+        return 0;
+      }
+      curr = curr->next_;
+    }
+    if (curr == hi) {
+      auto first = iterator_type(curr);
+      auto last = iterator_type(hi->next_);
+      erase_from_bucket(bucket_index, first, last);
       return 1;
     }
+
+    size_t count = 1;
+
+    auto last = curr->next_;
+    while (last != hi->next_ && last->key_ == key) {
+      last = last->next_;
+      ++count;
+    }
+    erase_from_bucket(bucket_index, curr, last);
+    return count;
   }
 
   iterator_type erase_from_bucket(size_t bucket_index, iterator_type iter) {
+    return erase_from_bucket(bucket_index, iter, next(iter));
+  }
+
+  iterator_type erase_from_bucket(size_t bucket_index, iterator_type first,
+                                  iterator_type last) {
     auto &lo = buckets_[bucket_index << 1];
-    if (iter == lo) {
-      ++lo;
+    auto &hi = buckets_[(bucket_index << 1) + 1];
+    assert(lo && hi);
+    bool adjust_lo = (lo == first.node_);
+    bool adjust_hi = (hi == last.node_->prev_);
+    bool empty_bucket = adjust_lo && adjust_hi;
+    if (empty_bucket) {
+      lo = nullptr;
+      hi = nullptr;
+    } else if (adjust_lo) {
+      lo = last.node_;
+    } else if (adjust_hi) {
+      hi = first.node_->prev_;
     }
-
-    if (iter != begin()) {
-      auto prev_bucket = bucket(*prev(iter));
-      auto &prev_lo = buckets_[prev_bucket << 1];
-      auto &prev_hi = buckets_[(prev_bucket << 1) + 1];
-      if (iter == prev_hi) {
-        ++prev_hi;
-        if (iter == prev_lo) {
-          ++prev_lo;
-        }
-      }
-    }
-
-    return values_.erase(iter);
+    auto res = values_.erase(first, last);
+    
+    return res;
   }
 
 public:
@@ -285,7 +319,7 @@ public:
   }
 
   [[nodiscard]] bool contains(const K &key) const noexcept {
-    return find_key_in_bucket(bucket_from_key(key), key) != end();
+    return find_in_bucket(bucket(key), key) != end();
   }
 
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
@@ -300,31 +334,37 @@ public:
     auto &lo = buckets_[bucket_index << 1];
     auto &hi = buckets_[(bucket_index << 1) + 1];
 
-    if (lo == hi) { // empty bucket
+    if (!lo) { // empty bucket
+      assert(!hi);
       values_.push_front(value);
-      lo = begin();
-      hi = next(lo);
+      lo = begin().node_;
+      hi = lo;
       if constexpr (AllowDup) {
         return lo;
       } else {
         return {lo, true};
       }
     } else {
-      auto it = ranges::lower_bound(lo, hi, value, less<K>{}, KeyProj{});
+      assert(lo && hi);
+
+      auto [where, exist] = find_insertion_point(lo, hi, value);
       if constexpr (!AllowDup) {
-        if (it != hi && KeyProj{}(*it) == KeyProj{}(value)) {
-          return {it, false};
+        if (exist) {
+          return {where, false};
         }
       }
-      auto it_old = it;
-      auto &prev_hi = (it_old != begin()) ? buckets_[(bucket(*prev(it_old)) << 1) + 1] : hi;
-      it = values_.insert(it, value);
-      if (lo == it_old) {
-        lo = it;
+      bool to_prepend = (where.node_ == lo);
+      bool to_append = (where.node_ == hi->next_);
+
+      auto it = values_.insert(where, value);
+
+      if (to_prepend) {
+        lo = it.node_;
       }
-      if (prev_hi != hi && prev_hi == it_old) {
-        prev_hi = it;
+      if (to_append) {
+        hi = where.node_->prev_;
       }
+
       if constexpr (AllowDup) {
         return it;
       } else {
@@ -340,20 +380,7 @@ public:
     return erase_from_bucket(bucket(*iter), iter);
   }
 
-  size_t erase(const K &key) {
-    auto bucket_index = bucket_from_key(key);
-    if constexpr (AllowDup) {
-      return erase_key_from_bucket(bucket_index, key);
-    } else {
-      // TODO: for HashMultiSet and HashMultiMap, optimize erase elements with
-      // the same keys by implementing range erase...
-      size_t erased = 0;
-      while (erase_key_from_bucket(bucket_index, key)) {
-        ++erased;
-      }
-      return erased;
-    }
-  }
+  size_t erase(const K &key) { return erase_from_bucket(bucket(key), key); }
 };
 
 } // namespace detail

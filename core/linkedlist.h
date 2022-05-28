@@ -13,7 +13,7 @@ public:
   T key_;
   ListNode *prev_ = nullptr;
   ListNode *next_ = nullptr;
-  ListNode(const T &key) : key_{key} {}
+  ListNode(T key) : key_{move(key)} {}
   ListNode(const ListNode &other) = delete;
   ListNode &operator=(const ListNode &other) = delete;
 };
@@ -261,6 +261,23 @@ private:
     --size_;
   }
 
+  void erase_range(Node* first, Node* last) {
+    assert(first && first->prev_ && first->next_);
+    assert(last && last->prev_ && last->next_);
+    if (first == head_) {
+      throw invalid_argument("attempt to erase from end()\n");
+    }
+    first->prev_->next_ = last;
+    last->prev_ = first->prev_;
+    auto curr = first;
+    while (curr != last) {
+      auto next = curr->next_;
+      delete curr;
+      curr = next;
+      --size_;
+    }
+  }
+
 public:
   iterator_type insert(const_iterator_type pos, const T &value) {
     auto where = pos.node_;
@@ -273,6 +290,11 @@ public:
     auto next = where->next_;
     erase_at(where);
     return iterator_type(next);
+  }
+
+  iterator_type erase(iterator_type first, iterator_type last) {
+    erase_range(first.node_, last.node_);
+    return last;
   }
 
   void splice(const_iterator_type pos, const_iterator_type first_iter, const_iterator_type last_iter) {
