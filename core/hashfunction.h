@@ -11,11 +11,19 @@ namespace frozenca::hard {
 using namespace std;
 namespace detail {
 
-inline constexpr size_t hash_a_base = 123UL;
+inline constexpr size_t half_size = sizeof(size_t) / 2;
+
+inline constexpr size_t hash_a_base = (1UL << half_size) + 123UL;
 
 template <size_t a> struct HashFunc {
+  static_assert(a & 1, "a must be an odd number\n");
+
+  constexpr size_t halfswap(size_t x) const noexcept {
+    return (x >> half_size) + (x << half_size);
+  }
+
   constexpr size_t operator()(size_t k) const noexcept {
-    return 2 * k * k + a * k;
+    return halfswap(2 * k * k + a * k);
   }
 };
 
@@ -72,7 +80,7 @@ template <typename T, size_t a = detail::hash_a_base> struct Hash {
     }
   }
 
-  constexpr size_t operator()(const T &key) const noexcept requires(SpanType<T>) {
+  constexpr size_t operator()(const T &key) const noexcept requires(SpanType<T> && Scalar<detail::SpanBaseType<T>>) {
     using base_type = detail::SpanBaseType<T>;
 
     auto num_bytes = key.size() * sizeof(base_type);
