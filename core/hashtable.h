@@ -54,13 +54,21 @@ class HashTable {
 
   static constexpr float max_load_factor_ = 1.0f;
 
-  // note that each invocation of Hasher{}(key) copies key every time!
-  size_t bucket(const K &key) const noexcept {
-    return Hasher{}(key)&bucket_mask_;
+  const K& proj(const V& value) const noexcept {
+    if constexpr (is_set_) {
+      return value;
+    } else {
+      return value.first;
+    }
   }
 
-  size_t bucket(const V &value) const noexcept requires(!is_set_) {
-    return bucket(value.first);
+  // note that each invocation of Hasher{}(key) copies key every time!
+  size_t bucket(const K& key) const noexcept {
+    return Hasher{}(key) & bucket_mask_;
+  }
+
+  size_t bucket(const V& value) const noexcept requires (!is_set_) {
+    return bucket(proj(value));
   }
 
 public:
@@ -155,15 +163,15 @@ private:
 
   // find insertion point in inclusive range [lo, hi]
   // and whether there is already the same key
-  pair<const_iterator_type, bool> find_insertion_point(Node *lo, Node *hi,
+  pair<iterator_type, bool> find_insertion_point(Node *lo, Node *hi,
                                           const K &key) const noexcept {
     assert(lo && hi && hi != end().node_);
     auto curr = lo; // this is Node*, not iterator_type
     while (true) {
-      if (curr->key_ >= key) {
-        return {const_iterator_type(curr), curr->key_ == key};
+      if (proj(curr->key_) >= key) {
+        return {iterator_type(curr), proj(curr->key_) == key};
       } else if (curr == hi) {
-        return {const_iterator_type(hi->next_), false};
+        return {iterator_type(hi->next_), false};
       }
       curr = curr->next_;
     }
@@ -171,13 +179,12 @@ private:
 
   // from first, find the first iterator which has the first different key
   // and that bucket index (to cache it)
-  pair<iterator_type, size_t>
-  find_next_key(iterator_type first) const noexcept {
+  pair<iterator_type, size_t> find_next_key(iterator_type first) const noexcept {
     assert(first != end());
     auto iter = first;
     ++iter;
-    while (iter != end()) {
-      if (*iter != *first) {
+    while (iter != iterator_type(end())) {
+      if (proj(*iter) != proj(*first)) {
         return {iter, bucket(*iter)};
       }
       ++iter;
@@ -210,7 +217,7 @@ private:
         lo = curr_it.node_;
         hi = next_it.node_->prev_;
       } else { // find insertion point
-        auto [where, unuse] = find_insertion_point(lo, hi, *curr_it);
+        auto [where, unuse] = find_insertion_point(lo, hi, proj(*curr_it));
         bool to_prepend = (where.node_ == lo);
         bool to_append = (where.node_ == hi->next_);
         assert(where != next_it);
@@ -233,19 +240,37 @@ private:
     }
   }
 
-  iterator_type find_in_bucket(size_t bucket_index,
+  const_iterator_type find_in_bucket(size_t bucket_index,
                                const K &key) const noexcept {
     auto lo = buckets_[bucket_index << 1];
     auto hi = buckets_[(bucket_index << 1) + 1];
     if (!lo) { // empty bucket
-      return end();
+      return cend();
     }
     auto curr = lo;
     while (true) {
-      if (curr->key_ == key) {
-        return iterator_type(curr);
-      } else if (curr->key_ > key || curr == hi) { // not found
-        return end();
+      if (proj(curr->key_) == key) {
+        return const_iterator_type(curr);
+      } else if (proj(curr->key_) > key || curr == hi) { // not found
+        return cend();
+      }
+      curr = curr->next_;
+    }
+  }
+
+  const_iterator_type find_in_bucket(size_t bucket_index,
+                               const V& value) const noexcept requires (!is_set_) {
+    auto lo = buckets_[bucket_index << 1];
+    auto hi = buckets_[(bucket_index << 1) + 1];
+    if (!lo) { // empty bucket
+      return cend();
+    }
+    auto curr = lo;
+    while (true) {
+      if (*curr == value) {
+        return const_iterator_type(curr);
+      } else if (proj(curr->key_) > proj(value) || curr == hi) { // not found
+        return cend();
       }
       curr = curr->next_;
     }
@@ -259,16 +284,16 @@ private:
     }
     auto curr = lo;
     while (true) {
-      if (curr->key_ == key) { // found starting point
+      if (proj(curr->key_) == key) { // found starting point
         break;
-      } else if (curr->key_ > key || curr == hi) { // not found
+      } else if (proj(curr->key_) > key || curr == hi) { // not found
         return 0;
       }
       curr = curr->next_;
     }
     if (curr == hi) {
-      auto first = iterator_type(curr);
-      auto last = iterator_type(hi->next_);
+      auto first = curr;
+      auto last = hi->next_;
       erase_from_bucket(bucket_index, first, last);
       return 1;
     }
@@ -276,7 +301,7 @@ private:
     size_t count = 1;
 
     auto last = curr->next_;
-    while (last != hi->next_ && last->key_ == key) {
+    while (last != hi->next_ && proj(last->key_) == key) {
       last = last->next_;
       ++count;
     }
@@ -311,7 +336,7 @@ private:
 
 public:
   iterator_type find(const V &value) {
-    return find_in_bucket(bucket(value), value);
+    return iterator_type(find_in_bucket(bucket(value), value));
   }
 
   const_iterator_type find(const V &value) const {
@@ -347,7 +372,7 @@ public:
     } else {
       assert(lo && hi);
 
-      auto [where, exist] = find_insertion_point(lo, hi, value);
+      auto [where, exist] = find_insertion_point(lo, hi, proj(value));
       if constexpr (!AllowDup) {
         if (exist) {
           return {where, false};
