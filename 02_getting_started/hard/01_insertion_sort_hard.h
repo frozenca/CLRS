@@ -19,14 +19,14 @@ struct insertion_sort_func {
       return first;
     }
     for (auto i = next(first); i != last; ++i) {
-      auto key = *i;
+      auto key = move(*i);
       auto j = i;
       while (j != first &&
              !invoke(comp, invoke(proj, *prev(j)), invoke(proj, key))) {
         iter_swap(prev(j), j);
         --j;
       }
-      *j = key;
+      *j = move(key);
     }
     return last;
   }
@@ -50,7 +50,7 @@ struct insertion_sort_recursive_func {
     }
     (*this)(first, prev(last), comp, proj);
     auto key = move(invoke(proj, *prev(last)));
-    ranges::rotate(ranges::lower_bound(first, prev(last), key, move(comp), move(proj)), prev(last), last);
+    ranges::rotate(ranges::lower_bound(first, prev(last), move(key), move(comp), move(proj)), prev(last), last);
     return last;
   }
 
