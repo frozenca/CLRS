@@ -190,6 +190,7 @@ struct RBSearchResult {
 };
 
 template <Containable K, typename V, typename Comp, bool AllowDup>
+requires invocable<Comp, K, K>
 class RedBlackTree {
   // invariant: V is either K or pair<const K, Value> for some Value type.
   static constexpr bool is_set_ = is_same_v<K, V>;
@@ -523,7 +524,7 @@ private:
       erase_fixup(x, xp);
     }
     size_--;
-    verify();
+    // add verify(); here to verify.
 
     return it;
   }
@@ -706,7 +707,7 @@ private:
     if (!begin_.node_ || Comp{}(proj(z_ptr->key_), proj(*begin_))) {
       begin_ = iterator_type(z_ptr);
     }
-    verify();
+    // add verify(); here to verify.
     return z_ptr;
   }
 

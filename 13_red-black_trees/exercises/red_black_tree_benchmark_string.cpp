@@ -15,18 +15,46 @@
 namespace fc = frozenca;
 using namespace std;
 
+
+vector<string> generate_random_strings(int max_n, int max_length, bool allow_duplicates) {
+  vector<string> res;
+
+  mt19937 gen(random_device{}());
+  uniform_int_distribution<int> length_dist (1, max_length);
+  uniform_int_distribution<int> ch_dist (32, 126);
+
+  for (int i = 0; i < max_n; ++i) {
+    int len = length_dist(gen);
+    string s;
+    for (int l = 0; l < len; ++l) {
+      s += static_cast<char>(ch_dist(gen));
+    }
+    res.push_back(move(s));
+  }
+
+  if (!allow_duplicates) {
+    ranges::sort(res);
+    auto ret = ranges::unique(res);
+    res.erase(ret.begin(), ret.end());
+  }
+
+  return res;  
+}
+
+
 template <typename RBTreeType> void rb_tree_test(bool warmup = false) {
-  constexpr int max_n = 5'000;
+  constexpr int max_n = 10'000;
+  constexpr int max_length = 100;
   constexpr int max_trials = 1'000;
 
   mt19937 gen(random_device{}());
   vector<float> durations_insert;
   vector<float> durations_find;
   vector<float> durations_erase;
-  vector<int> v(max_n);
-  iota(v.begin(), v.end(), 0);
 
   for (int t = 0; t < max_trials; ++t) {
+    auto v = generate_random_strings(max_n, max_length, false);
+
     RBTreeType h;
 
     float duration = 0.0f;
@@ -109,11 +137,11 @@ template <typename RBTreeType> void rb_tree_test(bool warmup = false) {
 int main() {
   cout << "Red-black tree demo\n";
 
-  rb_tree_test<set<int>>(true); // warm up for benchmarking
+  rb_tree_test<set<string>>(true); // warm up for benchmarking
 
   cout << "Warming up complete...\n";
-  cout << "frozenca::hard::TreeSet<int> test\n";
-  rb_tree_test<fc::hard::TreeSet<int>>();
-  cout << "std::set<int> test\n";
-  rb_tree_test<set<int>>();
+  cout << "frozenca::hard::TreeSet<std::string> test\n";
+  rb_tree_test<fc::hard::TreeSet<string>>();
+  cout << "std::set<std::string> test\n";
+  rb_tree_test<set<string>>();
 }
