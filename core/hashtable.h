@@ -25,12 +25,6 @@ class HashTable {
 
   LinkedList<V> values_;
 
-  // invariant: K cannot be mutated
-  // so if V is K, ListIter is const iterator.
-  // if V is pair<const K, value>, ListIter is non-const iterator (but only
-  // value can be mutated)
-  using ListIter = ListIterator<V, is_set_>;
-
   // invariant: buckets_.size() == 0 or must be a power of 2
   // each "bucket" is a pair of two ListNode* [begin, before_end]
   // this is inclusive range to minimize invocation of Hasher{}().
@@ -76,14 +70,15 @@ public:
   using value_type = V;
   using reference_type = V &;
   using const_reference_type = const V &;
-  using iterator_type = ListIter;
+  // invariant: K cannot be mutated
+  // so if V is K, uses const iterator.
+  // if V is pair<const K, value>, uses non-const iterator (but only value can be mutated)
+  using iterator_type = ListIterator<V, is_set_>;
   using const_iterator_type = ListIterator<V, true>;
   // hash tables have no reverse iterators!
 
   HashTable() = default;
   ~HashTable() = default;
-
-public:
   HashTable(const HashTable &other) : values_{other.values_} {
     buckets_.clear();
     rehash(other.bucket_count());
