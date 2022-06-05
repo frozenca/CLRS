@@ -11,9 +11,9 @@ namespace frozenca::hard {
 using namespace std;
 namespace detail {
 
-inline constexpr size_t half_size = sizeof(size_t) / 2;
+inline constexpr size_t half_size = sizeof(size_t) >> 1ULL;
 
-inline constexpr size_t hash_a_base = (1UL << half_size) + 123UL;
+inline constexpr size_t hash_a_base = ((1ULL << (half_size * 8ULL)) + 1ULL) * 123ULL;
 
 template <size_t a> struct HashFunc {
   static_assert(a & 1, "a must be an odd number\n");
@@ -36,7 +36,14 @@ template <unsigned_integral T, size_t a> struct HashBase {
 template <Scalar T, size_t a> struct HashImpl {
   constexpr size_t operator()(const T &key) const noexcept {
     if constexpr (sizeof(T) == sizeof(uint64_t)) {
-      return HashBase<uint64_t, a>{}(bit_cast<uint64_t>(key));
+      if constexpr (sizeof(uint64_t) > sizeof(size_t)) {
+        auto key64 = bit_cast<uint64_t>(key);
+        size_t val = HashBase<uint32_t, a>{}(static_cast<size_t>(key64 >> 32));
+        val = HashBase<uint32_t, a>{}(static_cast<size_t>(key64) + val);
+        return val;
+      } else {
+        return HashBase<uint64_t, a>{}(bit_cast<uint64_t>(key));
+      }
     } else if constexpr (sizeof(T) == sizeof(uint8_t)) {
       return HashBase<uint8_t, a>{}(bit_cast<uint8_t>(key));
     } else if constexpr (sizeof(T) == sizeof(uint16_t)) {
@@ -46,8 +53,7 @@ template <Scalar T, size_t a> struct HashImpl {
     } else {
       []<bool flag = false>() {
         static_assert(flag, "Not supported sizeof(T)");
-      }
-      ();
+      }();
     }
   }
 };

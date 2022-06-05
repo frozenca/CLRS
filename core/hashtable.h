@@ -347,8 +347,9 @@ public:
     return find_in_bucket(bucket(key), key) != end();
   }
 
+  template <typename T>
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
-  insert(const V &value) {
+  insert(T&& value) requires is_same_v<remove_cvref_t<T>, V> {
     auto [to_rehash, next_buckets_size] = need_rehash();
     if (to_rehash) {
       rehash(next_buckets_size);
@@ -361,7 +362,7 @@ public:
 
     if (!lo) { // empty bucket
       assert(!hi);
-      values_.push_front(value);
+      values_.push_front(forward<T>(value));
       lo = begin().node_;
       hi = lo;
       if constexpr (AllowDup) {
@@ -381,7 +382,7 @@ public:
       bool to_prepend = (where.node_ == lo);
       bool to_append = (where.node_ == hi->next_);
 
-      auto it = values_.insert(where, value);
+      auto it = values_.insert(where, forward<T>(value));
 
       if (to_prepend) {
         lo = it.node_;
@@ -395,6 +396,50 @@ public:
       } else {
         return {it, true};
       }
+    }
+  }
+
+  template <typename T>
+  add_lvalue_reference_t<decltype(declval<V>().second)>
+  operator[](T&& raw_key) requires (!is_set_ && !AllowDup) {
+    auto [to_rehash, next_buckets_size] = need_rehash();
+    if (to_rehash) {
+      rehash(next_buckets_size);
+    }
+
+    K key {forward<T>(raw_key)};
+
+    // find insertion point
+    auto bucket_index = bucket(key);
+    auto &lo = buckets_[bucket_index << 1];
+    auto &hi = buckets_[(bucket_index << 1) + 1];
+
+    if (!lo) { // empty bucket
+      assert(!hi);
+      values_.push_front({move(key), {}});
+      lo = begin().node_;
+      hi = lo;
+      return lo->key_.second;
+    } else {
+      assert(lo && hi);
+
+      auto [where, exist] = find_insertion_point(lo, hi, key);
+      if (exist) {
+        return where->second;
+      }
+      bool to_prepend = (where.node_ == lo);
+      bool to_append = (where.node_ == hi->next_);
+
+      auto it = values_.insert(where, {move(key), {}});
+
+      if (to_prepend) {
+        lo = it.node_;
+      }
+      if (to_append) {
+        hi = where.node_->prev_;
+      }
+
+      return it->second;
     }
   }
 

@@ -16,6 +16,8 @@ public:
   ListNode(T key) : key_{move(key)} {}
   ListNode(const ListNode &other) = delete;
   ListNode &operator=(const ListNode &other) = delete;
+  ListNode(ListNode &&other) = delete;
+  ListNode &operator=(ListNode &&other) = delete;
 };
 
 template <Containable T, bool Const> class ListIterator {
@@ -240,9 +242,8 @@ public:
   }
 
 private:
-  void insert_before(Node *where, const T &value) {
-    assert(where);
-    auto node = new Node(value);
+  void insert_before(Node* where, Node* node) {
+    assert(where && node);
     node->next_ = where;
     node->prev_ = where->prev_;
     where->prev_->next_ = node;
@@ -281,7 +282,15 @@ private:
 public:
   iterator_type insert(const_iterator_type pos, const T &value) {
     auto where = pos.node_;
-    insert_before(where, value);
+    auto node = new Node(value);
+    insert_before(where, node);
+    return iterator_type(where->prev_);
+  }
+
+  iterator_type insert(const_iterator_type pos, T&& value) {
+    auto where = pos.node_;
+    auto node = new Node(move(value));
+    insert_before(where, node);
     return iterator_type(where->prev_);
   }
 
@@ -312,9 +321,25 @@ public:
     first->prev_ = prev;
   }
 
-  void push_back(const T &value) { insert_before(head_, value); }
+  void push_back(const T &value) {
+    auto node = new Node(value);
+    insert_before(head_, node);
+  }
 
-  void push_front(const T &value) { insert_before(head_->next_, value); }
+  void push_back(T&& value) {
+    auto node = new Node(move(value));
+    insert_before(head_, node);
+  }
+
+  void push_front(const T &value) {
+    auto node = new Node(value);
+    insert_before(head_->next_, node);
+  }
+
+  void push_front(T&& value) {
+    auto node = new Node(move(value));
+    insert_before(head_->next_, node);
+  }
 
   void pop_back() { erase_at(head_->prev_); }
 
