@@ -342,9 +342,10 @@ public:
     return find_in_bucket(bucket(key), key) != end();
   }
 
+private:
   template <typename T>
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
-  insert(T&& value) requires is_same_v<remove_cvref_t<T>, V> {
+  insert_value(T&& value) requires is_same_v<remove_cvref_t<T>, V> {
     auto [to_rehash, next_buckets_size] = need_rehash();
     if (to_rehash) {
       rehash(next_buckets_size);
@@ -392,6 +393,17 @@ public:
         return {it, true};
       }
     }
+  }
+
+public:
+  conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
+  insert(const V& key) {
+    return insert_value(key);
+  }
+
+  conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
+  insert(V&& key) {
+    return insert_value(move(key));
   }
 
   template <typename T>

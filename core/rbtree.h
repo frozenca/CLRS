@@ -209,9 +209,9 @@ class RedBlackTree {
     
     // binary search tree properties
     assert(!node->left_ || (node->left_->parent_ == node &&
-                            Comp{}(node->left_->key_, node->key_)));
+                            !Comp{}(proj(node->key_), proj(node->left_->key_))));
     assert(!node->right_ || (node->right_->parent_ == node &&
-                             Comp{}(node->key_, node->right_->key_)));
+                             !Comp{}(proj(node->right_->key_), proj(node->key_))));
     
     // if a node is red, then both its children are black.
     assert(node->black_ || ((!node->left_ || node->left_->black_) && (!node->right_ || node->right_->black_)));
@@ -230,7 +230,7 @@ class RedBlackTree {
     verify(root_.get());
   }
 
-  const K& proj(const V& value) const noexcept {
+  static const K& proj(const V& value) noexcept {
     if constexpr (is_set_) {
       return value;
     } else {
@@ -441,9 +441,14 @@ private:
     }
   }
 
-  void erase(Node *z) {
+  iterator_type erase(Node *z) {
     if (!z) {
-      return;
+      return {};
+    }
+    iterator_type it (z);
+    ++it;
+    if (begin_.node_ == z) {
+      begin_ = it;
     }
     bool orig_black = z->black_;
     Node* x = nullptr;
@@ -519,6 +524,8 @@ private:
     }
     size_--;
     verify();
+
+    return it;
   }
 
   void erase_fixup(Node* x, Node* xp) {
@@ -639,6 +646,7 @@ private:
     auto x = root_.get();
     SearchResult res;
     while (x) {
+      res.parent_ = x;
       if (Comp{}(key, proj(x->key_))) {
         res.where_ = RBChild::Left;
         res.bound_ = x;
@@ -695,6 +703,9 @@ private:
     assert(z_ptr);
     insert_fixup(z_ptr);
     size_++;
+    if (!begin_.node_ || Comp{}(proj(z_ptr->key_), proj(*begin_))) {
+      begin_ = iterator_type(z_ptr);
+    }
     verify();
     return z_ptr;
   }
@@ -707,9 +718,7 @@ private:
     }
     auto cnt = 0;
     while (first != last) {
-      auto node = first.node_;
-      ++first;
-      erase(node);
+      first = erase(first.node_);
       cnt++;
     }
     return cnt;
@@ -754,9 +763,10 @@ public:
     return {const_iterator_type(res.first), const_iterator_type(res.second)};
   }
 
+private:
   template <typename T>
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
-  insert(T&& key) requires is_same_v<remove_cvref_t<T>, V> {
+  insert_value(T&& key) requires is_same_v<remove_cvref_t<T>, V> {
     SearchResult res;
     if constexpr(AllowDup) {
       res = find_upper_bound(proj(key));
@@ -769,7 +779,22 @@ public:
 
     auto z = make_unique<Node>(forward<T>(key));
     auto z_ptr = insert_node(move(z), res);
-    return {iterator_type(z_ptr), true};
+    if constexpr (AllowDup) {
+      return iterator_type(z_ptr);
+    } else {
+      return {iterator_type(z_ptr), true};
+    }
+  }
+  
+public:
+  conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
+  insert(const V& key) {
+    return insert_value(key);
+  }
+
+  conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
+  insert(V&& key) {
+    return insert_value(move(key));
   }
 
   template <typename T>
@@ -782,7 +807,8 @@ public:
       return res.bound_->key_.second;
     }
 
-    auto z = make_unique<Node>({move(key), {}});
+    V val {move(key), {}};
+    auto z = make_unique<Node>(move(val));
     auto z_ptr = insert_node(move(z), res);
     return z_ptr->key_.second;
   }
@@ -791,10 +817,7 @@ public:
     if (iter == end()) {
       throw invalid_argument("attempt to erase end()");
     }
-    auto node = iter.node_;
-    ++iter;
-    erase(node);
-    return iter;
+    return erase(iter.node_);
   }
 
   size_t erase(const K& key) {
