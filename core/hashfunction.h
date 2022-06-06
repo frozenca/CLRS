@@ -11,11 +11,11 @@ namespace frozenca::hard {
 using namespace std;
 namespace detail {
 
-inline constexpr size_t half_size = sizeof(size_t) >> 1ULL;
+inline constexpr size_t half_size = 8 * (sizeof(size_t) >> 1ULL);
 
-inline constexpr size_t hash_a_base = ((1ULL << (half_size * 8ULL)) + 1ULL) * 123ULL;
+inline constexpr size_t hash_a_base = ((1ULL << half_size) + 1ULL) * 123ULL;
 
-template <size_t a> struct HashFunc {
+template <size_t a, size_t r = 0> struct HashFunc {
   static_assert(a & 1, "a must be an odd number\n");
 
   constexpr size_t halfswap(size_t x) const noexcept {
@@ -23,7 +23,11 @@ template <size_t a> struct HashFunc {
   }
 
   constexpr size_t operator()(size_t k) const noexcept {
-    return halfswap(2 * k * k + a * k);
+    if constexpr (r == 0) {
+      return halfswap(2 * k * k + a * k);
+    } else {
+      return HashFunc<a, r - 1>{}(halfswap(2 * k * k + a * k));
+    }
   }
 };
 
