@@ -407,8 +407,7 @@ public:
   }
 
   template <typename T>
-  add_lvalue_reference_t<decltype(declval<V>().second)>
-  operator[](T&& raw_key) requires (!is_set_ && !AllowDup) {
+  auto& operator[](T&& raw_key) requires (!is_set_ && !AllowDup) {
     auto [to_rehash, next_buckets_size] = need_rehash();
     if (to_rehash) {
       rehash(next_buckets_size);

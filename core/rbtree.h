@@ -1,7 +1,6 @@
 #ifndef __CLRS4_RED_BLACK_TREE_H__
 #define __CLRS4_RED_BLACK_TREE_H__
 
-#include <binarytree.h>
 #include <cassert>
 #include <common.h>
 #include <iostream>
@@ -799,8 +798,7 @@ public:
   }
 
   template <typename T>
-  add_lvalue_reference_t<decltype(declval<V>().second)>
-  operator[](T&& raw_key) requires (!is_set_ && !AllowDup) {
+  auto& operator[](T&& raw_key) requires (!is_set_ && !AllowDup) {
     K key {forward<T>(raw_key)};
     SearchResult res;
     res = find_lower_bound(key);
