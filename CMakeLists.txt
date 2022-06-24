@@ -14,7 +14,7 @@ add_executable(CLRS4 main.cpp ${CLRS4_inc})
 target_include_directories(CLRS4 PRIVATE ${CMAKE_SOURCE_DIR} core)
 
 if(MSVC)
-  target_compile_options(CLRS4 PRIVATE /W4 /WX)
+  target_compile_options(CLRS4 PRIVATE /W4 /WX /nologo /MDd /EHsc /std:c++latest /experimental:module)
   if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_options(/Ox)
