@@ -16,7 +16,7 @@ namespace detail {
 template <Containable T> struct RBTreeNode {
   T key_ = T{};
   RBTreeNode *parent_ = nullptr;
-  bool black_ = false;                        // the new node starts out red
+  bool black_ = false; // the new node starts out red
   unique_ptr<RBTreeNode> left_;
   unique_ptr<RBTreeNode> right_;
   RBTreeNode() = default;
@@ -76,7 +76,7 @@ template <Containable T> struct RBTreeNode {
     return os;
   }
 
-  friend void inorder_print(ostream& os, const RBTreeNode* node) {
+  friend void inorder_print(ostream &os, const RBTreeNode *node) {
     if (node) {
       inorder_print(os, node->left_.get());
       os << node->key_ << ' ';
@@ -179,12 +179,11 @@ enum class RBChild {
   Right,
 };
 
-template <typename V>
-struct RBSearchResult {
+template <typename V> struct RBSearchResult {
   using Node = RBTreeNode<V>;
 
-  Node* bound_ = nullptr;
-  Node* parent_ = nullptr;
+  Node *bound_ = nullptr;
+  Node *parent_ = nullptr;
   RBChild where_ = RBChild::Unused;
 };
 
@@ -206,22 +205,27 @@ class RedBlackTree {
 
     auto left_black_height = verify(node->left_.get());
     auto right_black_height = verify(node->right_.get());
-    
+
     // binary search tree properties
-    assert(!node->left_ || (node->left_->parent_ == node &&
-                            !Comp{}(proj(node->key_), proj(node->left_->key_))));
-    assert(!node->right_ || (node->right_->parent_ == node &&
-                             !Comp{}(proj(node->right_->key_), proj(node->key_))));
-    
+    assert(!node->left_ ||
+           (node->left_->parent_ == node &&
+            !Comp{}(proj(node->key_), proj(node->left_->key_))));
+    assert(!node->right_ ||
+           (node->right_->parent_ == node &&
+            !Comp{}(proj(node->right_->key_), proj(node->key_))));
+
     // if a node is red, then both its children are black.
-    assert(node->black_ || ((!node->left_ || node->left_->black_) && (!node->right_ || node->right_->black_)));
+    assert(node->black_ || ((!node->left_ || node->left_->black_) &&
+                            (!node->right_ || node->right_->black_)));
 
     // for each node, all simple paths from the node to
     // descendant leaves contain the same number of black nodes.
     assert(left_black_height == right_black_height);
 
-    // to mute unused variable right_black_height compiler warning for release builds..
-    return ((left_black_height + right_black_height) / 2) + ((node->black_) ? 1 : 0);
+    // to mute unused variable right_black_height compiler warning for release
+    // builds..
+    return ((left_black_height + right_black_height) / 2) +
+           ((node->black_) ? 1 : 0);
   }
 
   void verify() const {
@@ -230,7 +234,7 @@ class RedBlackTree {
     verify(root_.get());
   }
 
-  static const K& proj(const V& value) noexcept {
+  static const K &proj(const V &value) noexcept {
     if constexpr (is_set_) {
       return value;
     } else {
@@ -245,7 +249,8 @@ public:
   using const_reference_type = const V &;
   // invariant: K cannot be mutated
   // so if V is K, uses const iterator.
-  // if V is pair<const K, value>, uses non-const iterator (but only value can be mutated)
+  // if V is pair<const K, value>, uses non-const iterator (but only value can
+  // be mutated)
   using iterator_type = RBTreeIterator<V, is_set_>;
   using const_iterator_type = RBTreeIterator<V, true>;
   using reverse_iterator_type = reverse_iterator<iterator_type>;
@@ -272,9 +277,7 @@ public:
   RedBlackTree(RedBlackTree &&other) noexcept = default;
   RedBlackTree &operator=(RedBlackTree &&other) noexcept = default;
 
-  [[nodiscard]] iterator_type begin() noexcept {
-    return begin_;
-  }
+  [[nodiscard]] iterator_type begin() noexcept { return begin_; }
 
   [[nodiscard]] const_iterator_type begin() const noexcept {
     return const_iterator_type(begin_);
@@ -284,17 +287,11 @@ public:
     return const_iterator_type(begin_);
   }
 
-  [[nodiscard]] iterator_type end() noexcept {
-    return {};
-  }
+  [[nodiscard]] iterator_type end() noexcept { return {}; }
 
-  [[nodiscard]] const_iterator_type end() const noexcept {
-    return {};
-  }
+  [[nodiscard]] const_iterator_type end() const noexcept { return {}; }
 
-  [[nodiscard]] const_iterator_type cend() const noexcept {
-    return {};
-  }
+  [[nodiscard]] const_iterator_type cend() const noexcept { return {}; }
 
   [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
 
@@ -305,16 +302,28 @@ public:
     size_ = 0;
   }
 
-private:
+  Node *get_root() noexcept { return root_.get(); }
+
+  const Node *get_root() const noexcept { return root_.get(); }
+
+protected:
   Node *minimum() const noexcept { return minimum(root_.get()); }
 
   Node *maximum() const noexcept { return maximum(root_.get()); }
 
-  int height() const noexcept {
-    return height(root_.get());
-  }
+  void set_begin(Node *ptr) noexcept { begin_ = iterator_type(ptr); }
 
-  static int height(Node* root) {
+  void set_root(unique_ptr<Node> z) noexcept { root_ = move(z); }
+
+  unique_ptr<Node> extract_root() noexcept { return move(root_); }
+
+  void size_incr() noexcept { size_++; }
+
+  void size_decr() noexcept { size_--; }
+
+  int height() const noexcept { return height(root_.get()); }
+
+  static int height(Node *root) {
     if (!root) {
       return 0;
     }
@@ -323,63 +332,69 @@ private:
     return max(l_height, r_height) + 1;
   }
 
-  void left_rotate(Node* x) {
+  void left_rotate(Node *x) {
     auto y = move(x->right_);
-    x->right_ = move(y->left_);                 // turn y's left subtree into x's right subtree
-    if (x->right_) {                            // if y's left subtree is not empty...
-      x->right_->parent_ = x;                   // ...then x becomes the parent of the subtree's root
+    x->right_ = move(y->left_); // turn y's left subtree into x's right subtree
+    if (x->right_) {            // if y's left subtree is not empty...
+      x->right_->parent_ =
+          x; // ...then x becomes the parent of the subtree's root
     }
-    y->parent_ = x->parent_;                    // x's parent becomes y's parent
+    y->parent_ = x->parent_; // x's parent becomes y's parent
     unique_ptr<Node> x_holder;
-    Node* y_ptr = nullptr;
-    if (!x->parent_) {                          // if x was the root...
+    Node *y_ptr = nullptr;
+    if (!x->parent_) { // if x was the root...
       x_holder = move(root_);
-      root_ = move(y);                          // ...then y becomes the root
+      root_ = move(y); // ...then y becomes the root
       y_ptr = root_.get();
-    } else if (x == x->parent_->left_.get()) {  // otherwise, if x was a left child...
+    } else if (x ==
+               x->parent_->left_.get()) { // otherwise, if x was a left child...
       x_holder = move(x->parent_->left_);
-      x->parent_->left_ = move(y);              // ...then y becomes a left child
+      x->parent_->left_ = move(y); // ...then y becomes a left child
       y_ptr = x->parent_->left_.get();
-    } else {                                    // otherwise, x was a right child,
+    } else { // otherwise, x was a right child,
       x_holder = move(x->parent_->right_);
-      x->parent_->right_ = move(y);             // and now y is a right child.
+      x->parent_->right_ = move(y); // and now y is a right child.
       y_ptr = x->parent_->right_.get();
     }
-    y_ptr->left_ = move(x_holder);              // make x become y's left child.
+    y_ptr->left_ = move(x_holder); // make x become y's left child.
     y_ptr->left_->parent_ = y_ptr;
   }
 
-  void right_rotate(Node* x) {
+  void right_rotate(Node *x) {
     auto y = move(x->left_);
-    x->left_ = move(y->right_);                 // turn y's right subtree into x's left subtree
-    if (x->left_) {                             // if y's right subtree is not empty...
-      x->left_->parent_ = x;                    // ...then x becomes the parent of the subtree's root
+    x->left_ = move(y->right_); // turn y's right subtree into x's left subtree
+    if (x->left_) {             // if y's right subtree is not empty...
+      x->left_->parent_ =
+          x; // ...then x becomes the parent of the subtree's root
     }
-    y->parent_ = x->parent_;                    // x's parent becomes y's parent
+    y->parent_ = x->parent_; // x's parent becomes y's parent
     unique_ptr<Node> x_holder;
-    Node* y_ptr = nullptr;
-    if (!x->parent_) {                          // if x was the root...
+    Node *y_ptr = nullptr;
+    if (!x->parent_) { // if x was the root...
       x_holder = move(root_);
-      root_ = move(y);                          // ...then y becomes the root
+      root_ = move(y); // ...then y becomes the root
       y_ptr = root_.get();
-    } else if (x == x->parent_->left_.get()) {  // otherwise, if x was a left child...
+    } else if (x ==
+               x->parent_->left_.get()) { // otherwise, if x was a left child...
       x_holder = move(x->parent_->left_);
-      x->parent_->left_ = move(y);              // ...then y becomes a left child
+      x->parent_->left_ = move(y); // ...then y becomes a left child
       y_ptr = x->parent_->left_.get();
-    } else {                                    // otherwise, x was a right child,
+    } else { // otherwise, x was a right child,
       x_holder = move(x->parent_->right_);
-      x->parent_->right_ = move(y);             // and now y is a right child.
+      x->parent_->right_ = move(y); // and now y is a right child.
       y_ptr = x->parent_->right_.get();
     }
-    y_ptr->right_ = move(x_holder);             // make x become y's right child.
+    y_ptr->right_ = move(x_holder); // make x become y's right child.
     y_ptr->right_->parent_ = y_ptr;
   }
 
-  void insert_fixup(Node* z) {
+private:
+  void insert_fixup(Node *z) {
     while (z && z->parent_ && !z->parent_->black_) {
-      if (z->parent_ == z->parent_->parent_->left_.get()) {      // is z's parent a left child?
-        auto y = z->parent_->parent_->right_.get();              // y is z's uncle
-        if (y && !y->black_) {                                   // are z's parent and uncle both red?
+      if (z->parent_ ==
+          z->parent_->parent_->left_.get()) { // is z's parent a left child?
+        auto y = z->parent_->parent_->right_.get(); // y is z's uncle
+        if (y && !y->black_) { // are z's parent and uncle both red?
           // case 1
           z->parent_->black_ = true;
           y->black_ = true;
@@ -397,8 +412,8 @@ private:
           right_rotate(z->parent_->parent_);
         }
       } else { // same as the above, but with "right" and "left" exchanged
-        auto y = z->parent_->parent_->left_.get();               // y is z's uncle
-        if (y && !y->black_) {                                   // are z's parent and uncle both red?
+        auto y = z->parent_->parent_->left_.get(); // y is z's uncle
+        if (y && !y->black_) { // are z's parent and uncle both red?
           // case 1
           z->parent_->black_ = true;
           y->black_ = true;
@@ -419,7 +434,7 @@ private:
     }
     root_->black_ = true;
   }
-  
+
   void transplant(Node *u, unique_ptr<Node> v) {
     assert(u);
     auto up = u->parent_;
@@ -445,14 +460,14 @@ private:
     if (!z) {
       return {};
     }
-    iterator_type it (z);
+    iterator_type it(z);
     ++it;
     if (begin_.node_ == z) {
       begin_ = it;
     }
     bool orig_black = z->black_;
-    Node* x = nullptr;
-    Node* xp = nullptr;
+    Node *x = nullptr;
+    Node *xp = nullptr;
     if (!z->left_) {
       x = z->right_.get();
       xp = z->parent_;
@@ -528,11 +543,11 @@ private:
     return it;
   }
 
-  void erase_fixup(Node* x, Node* xp) {
+  void erase_fixup(Node *x, Node *xp) {
     while (x != root_.get() && (!x || x->black_)) {
       assert(xp);
-      if (x == xp->left_.get()) {     // is x a left child?
-        auto w = xp->right_.get();    // w is x's sibling
+      if (x == xp->left_.get()) {  // is x a left child?
+        auto w = xp->right_.get(); // w is x's sibling
         assert(w);
         if (!w->black_) {
           // case 1
@@ -541,7 +556,8 @@ private:
           left_rotate(xp);
           w = xp->right_.get();
         }
-        if ((!w->left_ || w->left_->black_) && (!w->right_ || w->right_->black_)) {
+        if ((!w->left_ || w->left_->black_) &&
+            (!w->right_ || w->right_->black_)) {
           // case 2
           w->black_ = false;
           x = xp;
@@ -564,7 +580,7 @@ private:
           x = root_.get();
         }
       } else { // same as the above, but with "right" and "left" exchanged
-        auto w = xp->left_.get();    // w is x's sibling
+        auto w = xp->left_.get(); // w is x's sibling
         assert(w);
         if (!w->black_) {
           // case 1
@@ -573,7 +589,8 @@ private:
           right_rotate(xp);
           w = xp->left_.get();
         }
-        if ((!w->left_ || w->left_->black_) && (!w->right_ || w->right_->black_)) {
+        if ((!w->left_ || w->left_->black_) &&
+            (!w->right_ || w->right_->black_)) {
           // case 2
           w->black_ = false;
           x = xp;
@@ -616,7 +633,7 @@ private:
     return node;
   }
 
-  Node* find_node(const K& key) const {
+  Node *find_node(const K &key) const {
     auto res = find_lower_bound(key);
     if (res.bound_ && proj(res.bound_->key_) == key) {
       return res.bound_;
@@ -625,7 +642,7 @@ private:
     }
   }
 
-  SearchResult find_lower_bound(const K& key) const {
+  SearchResult find_lower_bound(const K &key) const {
     auto x = root_.get();
     SearchResult res;
     while (x) {
@@ -642,7 +659,7 @@ private:
     return res;
   }
 
-  SearchResult find_upper_bound(const K& key) const {
+  SearchResult find_upper_bound(const K &key) const {
     auto x = root_.get();
     SearchResult res;
     while (x) {
@@ -659,9 +676,9 @@ private:
     return res;
   }
 
-  pair<Node*, Node*> find_equal_range(const K& key) const {
-    Node* lo = nullptr;
-    Node* hi = nullptr;
+  pair<Node *, Node *> find_equal_range(const K &key) const {
+    Node *lo = nullptr;
+    Node *hi = nullptr;
 
     auto x = root_.get();
     while (x) {
@@ -687,11 +704,11 @@ private:
     return {lo, hi};
   }
 
-  Node* insert_node(unique_ptr<Node> z, const SearchResult& res) {
-    z->parent_ = res.parent_;              // found the location - insert z with parent y
-    Node* z_ptr = nullptr;
+  Node *insert_node(unique_ptr<Node> z, const SearchResult &res) {
+    z->parent_ = res.parent_; // found the location - insert z with parent y
+    Node *z_ptr = nullptr;
     if (!z->parent_) {
-      root_ = move(z);                     // tree was empty.
+      root_ = move(z); // tree was empty.
       z_ptr = root_.get();
     } else if (res.where_ == RBChild::Left) {
       res.parent_->left_ = move(z);
@@ -725,50 +742,55 @@ private:
   }
 
 public:
-  iterator_type find(const K& key) {
-    return iterator_type(find_node(key));
-  }
+  iterator_type find(const K &key) { return iterator_type(find_node(key)); }
 
-  const_iterator_type find(const K& key) const {
+  const_iterator_type find(const K &key) const {
     return const_iterator_type(find_node(key));
   }
 
-  bool contains(const K& key) const {
-    return find_node(key) != nullptr;
-  }
+  bool contains(const K &key) const { return find_node(key) != nullptr; }
 
-  iterator_type lower_bound(const K& key) {
+  iterator_type lower_bound(const K &key) {
     return iterator_type(find_lower_bound(key).bound_);
   }
 
-  const_iterator_type lower_bound(const K& key) const {
+  const_iterator_type lower_bound(const K &key) const {
     return const_iterator_type(find_lower_bound(key).bound_);
   }
 
-  iterator_type upper_bound(const K& key) {
+  iterator_type upper_bound(const K &key) {
     return iterator_type(find_upper_bound(key).bound_);
   }
 
-  const_iterator_type upper_bound(const K& key) const {
+  const_iterator_type upper_bound(const K &key) const {
     return const_iterator_type(find_upper_bound(key).bound_);
   }
 
-  pair<iterator_type, iterator_type> equal_range(const K& key) {
+  pair<iterator_type, iterator_type> equal_range(const K &key) {
     auto res = find_equal_range(key);
     return {iterator_type(res.first), iterator_type(res.second)};
   }
 
-  pair<const_iterator_type, const_iterator_type> equal_range(const K& key) const {
+  pair<const_iterator_type, const_iterator_type>
+  equal_range(const K &key) const {
     auto res = find_equal_range(key);
     return {const_iterator_type(res.first), const_iterator_type(res.second)};
+  }
+
+  pair<const_iterator_type, const_iterator_type> enumerate(const K &a,
+                                                           const K &b) const {
+    if (Comp{}(b, a)) {
+      throw invalid_argument("b < a in enumerate()");
+    }
+    return {lower_bound(a), upper_bound(b)};
   }
 
 private:
   template <typename T>
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
-  insert_value(T&& key) requires is_same_v<remove_cvref_t<T>, V> {
+  insert_value(T &&key) requires is_same_v<remove_cvref_t<T>, V> {
     SearchResult res;
-    if constexpr(AllowDup) {
+    if constexpr (AllowDup) {
       res = find_upper_bound(proj(key));
     } else {
       res = find_lower_bound(proj(key));
@@ -785,28 +807,28 @@ private:
       return {iterator_type(z_ptr), true};
     }
   }
-  
+
 public:
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
-  insert(const V& key) {
+  insert(const V &key) {
     return insert_value(key);
   }
 
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
-  insert(V&& key) {
+  insert(V &&key) {
     return insert_value(move(key));
   }
 
   template <typename T>
-  auto& operator[](T&& raw_key) requires (!is_set_ && !AllowDup) {
-    K key {forward<T>(raw_key)};
+  auto &operator[](T &&raw_key) requires(!is_set_ && !AllowDup) {
+    K key{forward<T>(raw_key)};
     SearchResult res;
     res = find_lower_bound(key);
     if (res.bound_ && proj(res.bound_->key_) == key) {
       return res.bound_->key_.second;
     }
 
-    V val {move(key), {}};
+    V val{move(key), {}};
     auto z = make_unique<Node>(move(val));
     auto z_ptr = insert_node(move(z), res);
     return z_ptr->key_.second;
@@ -819,7 +841,7 @@ public:
     return erase(iter.node_);
   }
 
-  size_t erase(const K& key) {
+  size_t erase(const K &key) {
     if constexpr (AllowDup) {
       auto eqr = find_equal_range(key);
       return erase_range(iterator_type(eqr.first), iterator_type(eqr.second));
