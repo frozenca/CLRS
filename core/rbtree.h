@@ -189,13 +189,25 @@ template <typename V> struct RBSearchResult {
 
 template <Containable K, typename V, typename Comp, bool AllowDup>
 requires invocable<Comp, K, K>
+class RedBlackTree;
+
+template <Containable K, typename V, typename Comp, bool AllowDup, typename T>
+RedBlackTree<K, V, Comp, AllowDup>
+join(RedBlackTree<K, V, Comp, AllowDup> &&tree1, T &&raw_value,
+     RedBlackTree<K, V, Comp, AllowDup> &&tree2) requires
+    is_constructible_v<V, remove_cvref_t<T>>;
+
+template <Containable K, typename V, typename Comp, bool AllowDup>
+requires invocable<Comp, K, K>
 class RedBlackTree {
   // invariant: V is either K or pair<const K, Value> for some Value type.
   static constexpr bool is_set_ = is_same_v<K, V>;
 
+public:
   using Node = RBTreeNode<V>;
   using SearchResult = RBSearchResult<V>;
 
+private:
   unique_ptr<Node> root_;
 
   static int verify(const Node *node) {
@@ -231,7 +243,7 @@ class RedBlackTree {
   void verify() const {
     // the root is black.
     assert(!root_ || root_->black_);
-    verify(root_.get());
+    assert(bh_ == verify(root_.get()));
   }
 
   static const K &proj(const V &value) noexcept {
@@ -258,20 +270,25 @@ public:
 
   iterator_type begin_;
   ptrdiff_t size_ = 0;
+  ptrdiff_t bh_ = 0;
 
   RedBlackTree() = default;
   RedBlackTree(const RedBlackTree &other) {
-    if (other->root_) {
+    if (other.root_) {
       root_ = make_unique<Node>();
-      root_->clone(*(other->root_));
+      root_->clone(*(other.root_));
     }
     begin_ = iterator_type(minimum());
+    size_ = other.size_;
+    bh_ = other.bh_;
   }
   RedBlackTree &operator=(const RedBlackTree &other) {
-    if (other->root_) {
-      root_->clone(*(other->root_));
+    if (other.root_) {
+      root_->clone(*(other.root_));
     }
     begin_ = iterator_type(minimum());
+    size_ = other.size_;
+    bh_ = other.bh_;
     return *this;
   }
   RedBlackTree(RedBlackTree &&other) noexcept = default;
@@ -300,6 +317,7 @@ public:
   void clear() noexcept {
     root_ = nullptr;
     size_ = 0;
+    bh_ = 0;
   }
 
   Node *get_root() noexcept { return root_.get(); }
@@ -432,7 +450,10 @@ private:
         }
       }
     }
-    root_->black_ = true;
+    if (!root_->black_) {
+      root_->black_ = true;
+      ++bh_;
+    }
   }
 
   void transplant(Node *u, unique_ptr<Node> v) {
@@ -535,6 +556,7 @@ private:
     }
     // if any red-black violations occurred, correct them
     if (orig_black) {
+      --bh_;
       erase_fixup(x, xp);
     }
     size_--;
@@ -578,6 +600,7 @@ private:
           w->right_->black_ = true;
           left_rotate(xp);
           x = root_.get();
+          ++bh_;
         }
       } else { // same as the above, but with "right" and "left" exchanged
         auto w = xp->left_.get(); // w is x's sibling
@@ -611,10 +634,14 @@ private:
           w->left_->black_ = true;
           right_rotate(xp);
           x = root_.get();
+          ++bh_;
         }
       }
     }
     if (x) {
+      if (!x->black_) {
+        ++bh_;
+      }
       x->black_ = true;
     }
   }
@@ -860,7 +887,117 @@ public:
     inorder_print(os, tree.root_.get());
     return os;
   }
+
+private:
+  void preorder_print(const Node *node) const {
+    if (node) {
+      cout << node->key_ << ' ';
+      cout << ((node->black_) ? "B " : "R ");
+      preorder_print(node->left_.get());
+      preorder_print(node->right_.get());
+    } else {
+      cout << "#B ";
+    }
+  }
+
+public:
+  void preorder_print() const { preorder_print(root_.get()); }
+
+  template <Containable K_, typename V_, typename Comp_, bool AllowDup_,
+            typename T>
+  friend RedBlackTree<K_, V_, Comp_, AllowDup_>
+  join(RedBlackTree<K_, V_, Comp_, AllowDup_> &&tree1, T &&raw_value,
+       RedBlackTree<K_, V_, Comp_, AllowDup_> &&tree2) requires
+      is_constructible_v<V_, remove_cvref_t<T>>;
 };
+
+template <Containable K, typename V, typename Comp, bool AllowDup, typename T>
+RedBlackTree<K, V, Comp, AllowDup>
+join(RedBlackTree<K, V, Comp, AllowDup> &&tree1, T &&raw_value,
+     RedBlackTree<K, V, Comp, AllowDup> &&tree2) requires
+    is_constructible_v<V, remove_cvref_t<T>> {
+  using Tree = RedBlackTree<K, V, Comp, AllowDup>;
+  using Node = RBTreeNode<V>;
+  V mid_value{forward<T>(raw_value)};
+  assert(tree1.empty() || !Comp{}(proj(mid_value), proj(*tree1.rbegin())));
+  assert(tree2.empty() || !Comp{}(proj(*tree2.begin()), proj(mid_value)));
+
+  if (tree1.bh_ >= tree2.bh_) {
+    Tree new_tree = move(tree1);
+    ptrdiff_t curr_bh = tree1.bh_;
+    Node *curr_node = new_tree.root_.get();
+    Node *curr_parent = nullptr;
+    RBChild child = RBChild::Unused;
+    while (curr_node && curr_bh > tree2.bh_) {
+      if (curr_node->black_) {
+        --curr_bh;
+      }
+      curr_parent = curr_node;
+      if (curr_node->right_) {
+        curr_node = curr_node->right_.get();
+        child = RBChild::Right;
+      } else {
+        curr_node = curr_node->left_.get();
+        child = RBChild::Left;
+      }
+    }
+    unique_ptr<Node> same_bh_subtree = make_unique<Node>(move(mid_value));
+    if (child == RBChild::Right) {
+      same_bh_subtree->left_ = move(curr_parent->right_);
+      same_bh_subtree->right_ = move(tree2.root_);
+      curr_parent->right_ = move(same_bh_subtree);
+    } else if (child == RBChild::Left) {
+      same_bh_subtree->left_ = move(curr_parent->left_);
+      same_bh_subtree->right_ = move(tree2.root_);
+      curr_parent->left_ = move(same_bh_subtree);
+    } else if (child == RBChild::Unused) {
+      // tree1 was empty or black height of two trees were the same
+      same_bh_subtree->left_ = move(new_tree.root_);
+      same_bh_subtree->right_ = move(tree2.root_);
+      new_tree.root_ = move(same_bh_subtree);
+    } else {
+      throw runtime_error("RBChild class error");
+    }
+    return new_tree;
+  } else {
+    Tree new_tree = move(tree2);
+    ptrdiff_t curr_bh = tree2.bh_;
+    Node *curr_node = new_tree.root_.get();
+    Node *curr_parent = nullptr;
+    RBChild child = RBChild::Unused;
+    while (curr_node && curr_bh > tree1.bh_) {
+      if (curr_node->black_) {
+        --curr_bh;
+      }
+      curr_parent = curr_node;
+      if (curr_node->left_) {
+        curr_node = curr_node->left_.get();
+        child = RBChild::Left;
+      } else {
+        curr_node = curr_node->right_.get();
+        child = RBChild::Right;
+      }
+    }
+    unique_ptr<Node> same_bh_subtree = make_unique<Node>(move(mid_value));
+    if (child == RBChild::Right) {
+      same_bh_subtree->left_ = move(tree1.root_);
+      same_bh_subtree->right_ = move(curr_parent->right_);
+      curr_parent->right_ = move(same_bh_subtree);
+    } else if (child == RBChild::Left) {
+      same_bh_subtree->left_ = move(tree1.root_);
+      same_bh_subtree->right_ = move(curr_parent->left_);
+      curr_parent->left_ = move(same_bh_subtree);
+    } else if (child == RBChild::Unused) {
+      // tree1 was empty or black height of two trees were the same
+      same_bh_subtree->left_ = move(tree1.root_);
+      same_bh_subtree->right_ = move(new_tree.root_);
+      new_tree.root_ = move(same_bh_subtree);
+    } else {
+      throw runtime_error("RBChild class error");
+    }
+    return new_tree;
+  }
+}
 
 } // namespace detail
 
