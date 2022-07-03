@@ -3,6 +3,7 @@
 
 #include <13_red-black_trees/easy/02_bst_convert.h>
 #include <13_red-black_trees/easy/03_rbtree_noparent.h>
+#include <13_red-black_trees/easy/problems_01_persistent_rbtree.h>
 #include <test.h>
 #include <util.h>
 
