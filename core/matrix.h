@@ -4,6 +4,8 @@
 #include <common.h>
 #include <initializer_list>
 #include <iostream>
+#include <numeric>
+#include <random>
 #include <stdexcept>
 
 namespace frozenca {
@@ -53,11 +55,23 @@ concept MatType = requires(Mat m, size_t r, size_t c) {
 template <semiregular T> class Matrix {
 public:
   using value_type = T;
+
+  Matrix() = default;
   Matrix(size_t rows, size_t cols)
       : rows_{rows}, cols_{cols}, buffer_(make_unique<T[]>(rows_ * cols_)) {
     if (!rows_ || !cols_) {
       throw invalid_argument("Number of rows or cols are zero\n");
     }
+  }
+
+  template <integral Int>
+  Matrix(Int rows, Int cols) {
+    if (rows <= 0 || cols <= 0) {
+      throw invalid_argument("Number of rows or cols are zero\n");
+    }
+    rows_ = rows;
+    cols_ = cols;
+    buffer_ = make_unique<T[]>(rows_ * cols_);
   }
 
   explicit Matrix(MatrixInitializer<T> init)
@@ -91,8 +105,15 @@ public:
     return *this;
   }
 
-  Matrix(Matrix &&other) = default;
-  Matrix &operator=(Matrix &&other) = default;
+  Matrix(Matrix &&other) noexcept : rows_{other.rows_}, cols_{other.cols_},
+        buffer_{move(other.buffer_)} {
+  }
+  
+  Matrix &operator=(Matrix &&other) noexcept {
+    auto tmp = move(other);
+    swap(*this, tmp);
+    return *this;
+  }
 
   T &operator()(size_t r, size_t c) {
     assert(r < rows_ && c < cols_);
@@ -118,6 +139,10 @@ public:
     uniform_real_distribution<T> dist(T{-300}, T{300});
     generate(buffer_.get(), buffer_.get() + rows_ * cols_,
              [&dist, &gen]() { return dist(gen); });
+  }
+
+  void iota_fill() requires is_integral_v<T> {
+    iota(buffer_.get(), buffer_.get() + rows_ * cols_, 0);
   }
 
   [[nodiscard]] size_t urows() const { return rows_; }
@@ -180,8 +205,8 @@ public:
   friend class MatrixView<T, true>;
 
 private:
-  size_t rows_;
-  size_t cols_;
+  size_t rows_ = 0;
+  size_t cols_ = 0;
   unique_ptr<T[]> buffer_;
 };
 
@@ -290,7 +315,7 @@ auto operator+(const Mat1 &A, const Mat2 &B) {
   }
   index_t rows = A.rows();
   index_t cols = A.cols();
-  using T = common_type_t<typename Mat1::value_type, typename Mat2::value_type>;  
+  using T = common_type_t<typename Mat1::value_type, typename Mat2::value_type>;
   Matrix<T> C(rows, cols);
   for (index_t r = 0; r < rows; ++r) {
     for (index_t c = 0; c < cols; ++c) {
@@ -307,7 +332,7 @@ auto operator-(const Mat1 &A, const Mat2 &B) {
   }
   index_t rows = A.rows();
   index_t cols = A.cols();
-  using T = common_type_t<typename Mat1::value_type, typename Mat2::value_type>;  
+  using T = common_type_t<typename Mat1::value_type, typename Mat2::value_type>;
   Matrix<T> C(rows, cols);
   for (index_t r = 0; r < rows; ++r) {
     for (index_t c = 0; c < cols; ++c) {
@@ -324,7 +349,7 @@ auto operator*(const Mat1 &A, const Mat2 &B) {
   }
   index_t rows = A.rows();
   index_t cols = B.cols();
-  using T = common_type_t<typename Mat1::value_type, typename Mat2::value_type>;  
+  using T = common_type_t<typename Mat1::value_type, typename Mat2::value_type>;
   Matrix<T> C(rows, cols);
   C.zero_fill();
   for (index_t r = 0; r < rows; ++r) {
