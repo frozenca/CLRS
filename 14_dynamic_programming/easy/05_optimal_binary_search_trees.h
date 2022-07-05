@@ -46,7 +46,7 @@ optimal_bst(const vector<float> &p, const vector<float> &q) {
       }
     }
   }
-  return {e, root};
+  return {move(e), move(root)};
 }
 
 void construct_optimal_bst_impl(const vector<vector<index_t>> &root, index_t i,

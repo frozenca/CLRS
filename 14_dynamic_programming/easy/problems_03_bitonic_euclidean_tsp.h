@@ -39,7 +39,7 @@ bitonic_euclidean_tsp_impl(vector<Point2d> &p) {
   }
   b[n - 1][n - 1] = b[n - 2][n - 1] + dist(p[n - 2], p[n - 1]);
   r[n - 1][n - 1] = n - 2;
-  return {b, r};
+  return {move(b), move(r)};
 }
 
 void bitonic_euclidean_tsp(vector<Point2d> &p) {

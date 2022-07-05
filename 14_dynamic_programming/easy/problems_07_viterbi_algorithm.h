@@ -86,7 +86,7 @@ viterbi_optimal_path(const SoundGraph &g, index_t src,
   auto [seq, prob] = viterbi_get_optimal_path(g, target_sequence.begin(),
                                               target_sequence.end(), src);
   ranges::reverse(seq);
-  return {seq, prob};
+  return {move(seq), prob};
 }
 
 } // namespace frozenca

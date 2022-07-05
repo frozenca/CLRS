@@ -39,7 +39,7 @@ lcs_length(const vector<char> &X, const vector<char> &Y) {
       }
     }
   }
-  return {c, b};
+  return {move(c), move(b)};
 }
 
 void print_lcs_impl(const vector<vector<DirectionLCS>> &b, const vector<char> &X,

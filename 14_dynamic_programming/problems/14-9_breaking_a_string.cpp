@@ -3,7 +3,6 @@
 #include <iostream>
 #include <vector>
 
-
 int main() {
   namespace fc = frozenca;
   using namespace std;

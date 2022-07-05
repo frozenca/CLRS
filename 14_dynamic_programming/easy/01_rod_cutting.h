@@ -86,7 +86,7 @@ cut_rod_bottom_up_extended(const vector<index_t> &p) {
       }
     }
   }
-  return {r, s};
+  return {move(r), move(s)};
 }
 
 void cut_rod_solution_print(const vector<index_t> &p) {

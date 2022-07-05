@@ -17,6 +17,9 @@
 #include <14_dynamic_programming/easy/problems_07_viterbi_algorithm.h>
 #include <14_dynamic_programming/easy/problems_08_image_compression_by_seam_carving.h>
 #include <14_dynamic_programming/easy/problems_09_breaking_a_string.h>
+#include <14_dynamic_programming/easy/problems_10_planning_an_investment_strategy.h>
+#include <14_dynamic_programming/easy/problems_11_inventory_planning.h>
+#include <14_dynamic_programming/easy/problems_12_signing_free-agent_baseball_players.h>
 #include <test.h>
 #include <util.h>
 

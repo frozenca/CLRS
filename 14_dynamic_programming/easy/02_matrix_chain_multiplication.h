@@ -34,7 +34,7 @@ matrix_chain_order(const vector<index_t> &p) {
       }
     }
   }
-  return {m, s};
+  return {move(m), move(s)};
 }
 
 void print_optimal_parens_impl(const vector<vector<index_t>> &s, index_t i,
