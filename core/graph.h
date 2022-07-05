@@ -19,9 +19,10 @@ template <typename Weight> struct AdjListDescTrait {
   using desc_type = pair<index_t, Weight>;
   using edges_type = vector<list<desc_type>>;
 
+  template <typename WeightType>
   static void add_edge(edges_type &edges, index_t src, index_t dst,
-                       float weight) {
-    edges[src].emplace_back(dst, weight);
+                       WeightType &&w) {
+    edges[src].emplace_back(dst, forward<WeightType>(w));
   }
 
   static index_t proj(const desc_type &desc) noexcept { return desc.first; }
@@ -90,16 +91,28 @@ template <typename Weight> struct AdjListTrait {
     }
     return it;
   }
+
+  static bool has_edge(const edges_type &edges, index_t src,
+                                       index_t dst) {
+    auto it = edges[src].begin();
+    for (; it != edges[src].end(); ++it) {
+      if (desc_trait::proj(*it) == dst) {
+        return true;
+      }
+    }
+    return false;
+  }
 };
 
 template <typename Weight> struct AdjMatDescTrait {
   using desc_type = Weight;
   using edges_type = vector<desc_type>;
 
+  template <typename WeightType>
   static void add_edge(edges_type &edges, index_t src, index_t dst,
-                       float weight) {
+                       WeightType &&w) {
     const auto curr_size = static_cast<index_t>(sqrt(ssize(edges)));
-    edges[src * curr_size + dst] = weight;
+    edges[src * curr_size + dst] = forward<WeightType>(w);
   }
 };
 
@@ -167,6 +180,12 @@ template <typename Weight> struct AdjMatTrait {
     auto sz = curr_size(edges);
     return edges.begin() + src * sz + dst;
   }
+
+  static bool has_edge(const edges_type &edges, index_t src,
+                                       index_t dst) {
+    auto sz = curr_size(edges);
+    return edges.begin() + src * sz + dst;
+  }
 };
 
 struct AdjListTraitTag {
@@ -216,20 +235,29 @@ public:
     }
   }
 
-  void add_edge(index_t src, index_t dst, WeightType w) requires(Weighted) {
+  template <typename... Args>
+  void add_edge(index_t src, index_t dst, Args &&...args) requires(Weighted) {
     index_check(src, dst);
-    edge_trait::desc_trait::add_edge(edges_, src, dst, w);
+    if (has_edge(src, dst)) {
+      return;
+    }
+    WeightType w {forward<Args>(args)...};
+
     if constexpr (!Directed) {
       edge_trait::desc_trait::add_edge(edges_, dst, src, w);
     }
+    edge_trait::desc_trait::add_edge(edges_, src, dst, move(w));
   }
 
   void add_edge(index_t src, index_t dst) requires(!Weighted) {
     index_check(src, dst);
-    edge_trait::desc_trait::add_edge(edges_, src, dst);
+    if (has_edge(src, dst)) {
+      return;
+    }
     if constexpr (!Directed) {
       edge_trait::desc_trait::add_edge(edges_, dst, src);
     }
+    edge_trait::desc_trait::add_edge(edges_, src, dst);
   }
 
   auto edges(index_t src) {
@@ -258,6 +286,13 @@ public:
       throw invalid_argument("vertex does not exist");
     }
     return edge_trait::get_edge(edges_, src, dst);
+  }
+
+  [[nodiscard]] bool has_edge(index_t src, index_t dst) const {
+    if (vertex_invalid(src) || vertex_invalid(dst)) {
+      throw invalid_argument("vertex does not exist");
+    }
+    return edge_trait::has_edge(edges_, src, dst);
   }
 
   [[nodiscard]] index_t size() const noexcept {
