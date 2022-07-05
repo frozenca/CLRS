@@ -8,6 +8,11 @@
 #include <14_dynamic_programming/easy/04_longest_common_subsequence.h>
 #include <14_dynamic_programming/easy/04_longest_increasing_subsequence.h>
 #include <14_dynamic_programming/easy/05_optimal_binary_search_trees.h>
+#include <14_dynamic_programming/easy/problems_01_longest_simple_path_dag.h>
+#include <14_dynamic_programming/easy/problems_02_longest_palindromic_subsequence.h>
+#include <14_dynamic_programming/easy/problems_03_bitonic_euclidean_tsp.h>
+#include <14_dynamic_programming/easy/problems_04_printing_neatly.h>
+#include <14_dynamic_programming/easy/problems_05_edit_distance.h>
 #include <test.h>
 #include <util.h>
 
