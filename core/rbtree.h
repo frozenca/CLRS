@@ -13,36 +13,40 @@ using namespace std;
 
 namespace detail {
 
-template <Containable T, typename Derived> struct RBTreeNode {
+template <Containable T, typename Derived> struct RBTreeNodeBase {
   T key_ = T{};
-  RBTreeNode *parent_ = nullptr;
+  Derived *parent_ = nullptr;
   bool black_ = false; // the new node starts out red
-  unique_ptr<RBTreeNode> left_;
-  unique_ptr<RBTreeNode> right_;
-  RBTreeNode() = default;
-  RBTreeNode(T key) : key_{move(key)} {}
+  unique_ptr<Derived> left_;
+  unique_ptr<Derived> right_;
+  RBTreeNodeBase() = default;
+  RBTreeNodeBase(T key) : key_{move(key)} {}
 
-  void clone(const RBTreeNode &other) {
+  void clone(const RBTreeNodeBase &other) {
     key_ = other.key_;
     black_ = other.black_;
     if (other.left_) {
-      left_ = make_unique<RBTreeNode>();
+      left_ = make_unique<RBTreeNodeBase>();
       left_->clone(*other.left_);
       left_->parent_ = this;
     }
     if (other.right_) {
-      right_ = make_unique<RBTreeNode>();
+      right_ = make_unique<RBTreeNodeBase>();
       right_->clone(*other.right_);
       right_->parent_ = this;
     }
   }
 
-  RBTreeNode(const RBTreeNode &node) = delete;
-  RBTreeNode &operator=(const RBTreeNode &node) = delete;
-  RBTreeNode(RBTreeNode &&node) = delete;
-  RBTreeNode &operator=(RBTreeNode &&node) = delete;
+  RBTreeNodeBase(const RBTreeNodeBase &node) = delete;
+  RBTreeNodeBase &operator=(const RBTreeNodeBase &node) = delete;
+  RBTreeNodeBase(RBTreeNodeBase &&node) = delete;
+  RBTreeNodeBase &operator=(RBTreeNodeBase &&node) = delete;
 
-  friend istream &operator>>(istream &is, unique_ptr<RBTreeNode> &node) {
+  Derived &derived() { return static_cast<Derived &>(*this); }
+
+  const Derived &derived() const { return static_cast<const Derived &>(*this); }
+
+  friend istream &operator>>(istream &is, unique_ptr<RBTreeNodeBase> &node) {
     string val;
     is >> val;
     if (val == "#") {
@@ -53,7 +57,7 @@ template <Containable T, typename Derived> struct RBTreeNode {
     if (!(istr >> v)) {
       return is;
     }
-    node = make_unique<RBTreeNode>(v);
+    node = make_unique<RBTreeNodeBase>(v);
     is >> node->left_;
     if (node->left_) {
       node->left_->parent_ = node.get();
@@ -65,7 +69,7 @@ template <Containable T, typename Derived> struct RBTreeNode {
     return is;
   }
 
-  friend ostream &operator<<(ostream &os, const RBTreeNode *node) {
+  friend ostream &operator<<(ostream &os, const RBTreeNodeBase *node) {
     if (node) {
       os << node->key_ << ' ';
       os << node->left_.get();
@@ -76,7 +80,7 @@ template <Containable T, typename Derived> struct RBTreeNode {
     return os;
   }
 
-  friend void inorder_print(ostream &os, const RBTreeNode *node) {
+  friend void inorder_print(ostream &os, const RBTreeNodeBase *node) {
     if (node) {
       inorder_print(os, node->left_.get());
       os << node->key_ << ' ';
@@ -84,6 +88,9 @@ template <Containable T, typename Derived> struct RBTreeNode {
     }
   }
 };
+
+template <Containable T>
+struct RBTreeNode : public RBTreeNodeBase<T, RBTreeNode<T>> {};
 
 template <Containable T, bool Const, typename Node> class BSTIterator {
 public:
@@ -187,19 +194,20 @@ template <typename Node> struct BSTSearchResult {
 template <Containable K, typename V, typename Comp, bool AllowDup,
           typename Node, typename Derived>
 requires invocable<Comp, K, K>
-class RedBlackTree;
+class RedBlackTreeBase;
 
 template <Containable K, typename V, typename Comp, bool AllowDup,
           typename Node, typename Derived, typename T>
-RedBlackTree<K, V, Comp, AllowDup, Node, Derived>
-join(RedBlackTree<K, V, Comp, AllowDup, Node, Derived> &&tree1, T &&raw_value,
-     RedBlackTree<K, V, Comp, AllowDup, Node, Derived> &&tree2) requires
+RedBlackTreeBase<K, V, Comp, AllowDup, Node, Derived>
+join(RedBlackTreeBase<K, V, Comp, AllowDup, Node, Derived> &&tree1,
+     T &&raw_value,
+     RedBlackTreeBase<K, V, Comp, AllowDup, Node, Derived> &&tree2) requires
     is_constructible_v<V, remove_cvref_t<T>>;
 
 template <Containable K, typename V, typename Comp, bool AllowDup,
           typename Node, typename Derived>
 requires invocable<Comp, K, K>
-class RedBlackTree {
+class RedBlackTreeBase {
   // invariant: V is either K or pair<const K, Value> for some Value type.
   static constexpr bool is_set_ = is_same_v<K, V>;
 
@@ -273,8 +281,8 @@ public:
   ptrdiff_t bh_ = 0;
   ptrdiff_t potential_ = 0;
 
-  RedBlackTree() = default;
-  RedBlackTree(const RedBlackTree &other) {
+  RedBlackTreeBase() = default;
+  RedBlackTreeBase(const RedBlackTreeBase &other) {
     if (other.root_) {
       root_ = make_unique<Node>();
       root_->clone(*(other.root_));
@@ -283,7 +291,7 @@ public:
     size_ = other.size_;
     bh_ = other.bh_;
   }
-  RedBlackTree &operator=(const RedBlackTree &other) {
+  RedBlackTreeBase &operator=(const RedBlackTreeBase &other) {
     if (other.root_) {
       root_->clone(*(other.root_));
     }
@@ -292,8 +300,8 @@ public:
     bh_ = other.bh_;
     return *this;
   }
-  RedBlackTree(RedBlackTree &&other) noexcept = default;
-  RedBlackTree &operator=(RedBlackTree &&other) noexcept = default;
+  RedBlackTreeBase(RedBlackTreeBase &&other) noexcept = default;
+  RedBlackTreeBase &operator=(RedBlackTreeBase &&other) noexcept = default;
 
   [[nodiscard]] iterator_type begin() noexcept { return begin_; }
 
@@ -324,6 +332,10 @@ public:
   Node *get_root() noexcept { return root_.get(); }
 
   const Node *get_root() const noexcept { return root_.get(); }
+
+  Derived &derived() { return static_cast<Derived &>(*this); }
+
+  const Derived &derived() const { return static_cast<const Derived &>(*this); }
 
 protected:
   Node *minimum() const noexcept { return minimum(root_.get()); }
@@ -890,7 +902,7 @@ public:
     }
   }
 
-  friend ostream &operator<<(ostream &os, const RedBlackTree &tree) {
+  friend ostream &operator<<(ostream &os, const RedBlackTreeBase &tree) {
     inorder_print(os, tree.root_.get());
     return os;
   }
@@ -912,22 +924,23 @@ public:
 
   template <Containable K_, typename V_, typename Comp_, bool AllowDup_,
             typename Node_, typename Derived_, typename T>
-  friend RedBlackTree<K_, V_, Comp_, AllowDup_, Node_, Derived_>
-  join(RedBlackTree<K_, V_, Comp_, AllowDup_, Node_, Derived_> &&tree1,
+  friend RedBlackTreeBase<K_, V_, Comp_, AllowDup_, Node_, Derived_>
+  join(RedBlackTreeBase<K_, V_, Comp_, AllowDup_, Node_, Derived_> &&tree1,
        T &&raw_value,
-       RedBlackTree<K_, V_, Comp_, AllowDup_, Node_, Derived_> &&tree2) requires
-      is_constructible_v<V_, remove_cvref_t<T>>;
+       RedBlackTreeBase<K_, V_, Comp_, AllowDup_, Node_, Derived_>
+           &&tree2) requires is_constructible_v<V_, remove_cvref_t<T>>;
 
   [[nodiscard]] ptrdiff_t get_potential() const noexcept { return potential_; }
 };
 
 template <Containable K, typename V, typename Comp, bool AllowDup,
           typename Node, typename Derived, typename T>
-RedBlackTree<K, V, Comp, AllowDup, Node, Derived>
-join(RedBlackTree<K, V, Comp, AllowDup, Node, Derived> &&tree1, T &&raw_value,
-     RedBlackTree<K, V, Comp, AllowDup, Node, Derived> &&tree2) requires
+RedBlackTreeBase<K, V, Comp, AllowDup, Node, Derived>
+join(RedBlackTreeBase<K, V, Comp, AllowDup, Node, Derived> &&tree1,
+     T &&raw_value,
+     RedBlackTreeBase<K, V, Comp, AllowDup, Node, Derived> &&tree2) requires
     is_constructible_v<V, remove_cvref_t<T>> {
-  using Tree = RedBlackTree<K, V, Comp, AllowDup, Node, Derived>;
+  using Tree = RedBlackTreeBase<K, V, Comp, AllowDup, Node, Derived>;
   V mid_value{forward<T>(raw_value)};
   assert(tree1.empty() || !Comp{}(proj(mid_value), proj(*tree1.rbegin())));
   assert(tree2.empty() || !Comp{}(proj(*tree2.begin()), proj(mid_value)));
@@ -1009,25 +1022,28 @@ join(RedBlackTree<K, V, Comp, AllowDup, Node, Derived> &&tree1, T &&raw_value,
   }
 }
 
+template <Containable K, typename V, typename Comp, bool AllowDup,
+          typename Node>
+class RedBlackTree
+    : public RedBlackTreeBase<K, V, Comp, AllowDup, Node,
+                              RedBlackTree<K, V, Comp, AllowDup, Node>> {};
+
 } // namespace detail
 
 template <Containable K, typename Comp = less<K>>
-using TreeSet =
-    detail::RedBlackTree<K, K, Comp, false, detail::RBTreeNode<K, void>, void>;
+using TreeSet = detail::RedBlackTree<K, K, Comp, false, detail::RBTreeNode<K>>;
 
 template <Containable K, typename Comp = less<K>>
 using TreeMultiSet =
-    detail::RedBlackTree<K, K, Comp, true, detail::RBTreeNode<K, void>, void>;
+    detail::RedBlackTree<K, K, Comp, true, detail::RBTreeNode<K>>;
 
 template <Containable K, Containable V, typename Comp = less<K>>
-using TreeMap =
-    detail::RedBlackTree<K, pair<const K, V>, Comp, false,
-                         detail::RBTreeNode<pair<const K, V>, void>, void>;
+using TreeMap = detail::RedBlackTree<K, pair<const K, V>, Comp, false,
+                                     detail::RBTreeNode<pair<const K, V>>>;
 
 template <Containable K, Containable V, typename Comp = less<K>>
-using TreeMultiMap =
-    detail::RedBlackTree<K, pair<const K, V>, Comp, true,
-                         detail::RBTreeNode<pair<const K, V>, void>, void>;
+using TreeMultiMap = detail::RedBlackTree<K, pair<const K, V>, Comp, true,
+                                          detail::RBTreeNode<pair<const K, V>>>;
 
 } // namespace frozenca::hard
 
