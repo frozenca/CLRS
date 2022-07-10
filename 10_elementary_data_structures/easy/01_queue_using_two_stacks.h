@@ -26,6 +26,10 @@ public:
     B.pop();
     return x;
   }
+
+  [[nodiscard]] bool empty() const noexcept {
+    return B.empty() && A.empty();
+  }
 };
 
 } // namespace frozenca
