@@ -13,7 +13,7 @@ using namespace std;
 
 namespace detail {
 
-template <Containable T> struct RBTreeNode {
+template <Containable T, typename Derived> struct RBTreeNode {
   T key_ = T{};
   RBTreeNode *parent_ = nullptr;
   bool black_ = false; // the new node starts out red
@@ -85,8 +85,7 @@ template <Containable T> struct RBTreeNode {
   }
 };
 
-template <Containable T, bool Const, typename Node = RBTreeNode<T>>
-class BSTIterator {
+template <Containable T, bool Const, typename Node> class BSTIterator {
 public:
   using difference_type = ptrdiff_t;
   using value_type = T;
@@ -101,7 +100,7 @@ public:
   BSTIterator() = default;
   BSTIterator(Node *node) : node_{node} {}
 
-  BSTIterator(const BSTIterator<T, !Const> &other) : node_{other.node_} {}
+  BSTIterator(const BSTIterator<T, !Const, Node> &other) : node_{other.node_} {}
 
   BSTIterator(const BSTIterator &other) = default;
   BSTIterator &operator=(const BSTIterator &other) = default;
@@ -185,24 +184,26 @@ template <typename Node> struct BSTSearchResult {
   BSTChild where_ = BSTChild::Unused;
 };
 
-template <Containable K, typename V, typename Comp, bool AllowDup>
+template <Containable K, typename V, typename Comp, bool AllowDup,
+          typename Node, typename Derived>
 requires invocable<Comp, K, K>
 class RedBlackTree;
 
-template <Containable K, typename V, typename Comp, bool AllowDup, typename T>
-RedBlackTree<K, V, Comp, AllowDup>
-join(RedBlackTree<K, V, Comp, AllowDup> &&tree1, T &&raw_value,
-     RedBlackTree<K, V, Comp, AllowDup> &&tree2) requires
+template <Containable K, typename V, typename Comp, bool AllowDup,
+          typename Node, typename Derived, typename T>
+RedBlackTree<K, V, Comp, AllowDup, Node, Derived>
+join(RedBlackTree<K, V, Comp, AllowDup, Node, Derived> &&tree1, T &&raw_value,
+     RedBlackTree<K, V, Comp, AllowDup, Node, Derived> &&tree2) requires
     is_constructible_v<V, remove_cvref_t<T>>;
 
-template <Containable K, typename V, typename Comp, bool AllowDup>
+template <Containable K, typename V, typename Comp, bool AllowDup,
+          typename Node, typename Derived>
 requires invocable<Comp, K, K>
 class RedBlackTree {
   // invariant: V is either K or pair<const K, Value> for some Value type.
   static constexpr bool is_set_ = is_same_v<K, V>;
 
 public:
-  using Node = RBTreeNode<V>;
   using SearchResult = BSTSearchResult<Node>;
 
 private:
@@ -257,12 +258,13 @@ public:
   using value_type = V;
   using reference_type = V &;
   using const_reference_type = const V &;
+  using node_type = Node;
   // invariant: K cannot be mutated
   // so if V is K, uses const iterator.
   // if V is pair<const K, value>, uses non-const iterator (but only value can
   // be mutated)
-  using iterator_type = BSTIterator<V, is_set_>;
-  using const_iterator_type = BSTIterator<V, true>;
+  using iterator_type = BSTIterator<V, is_set_, Node>;
+  using const_iterator_type = BSTIterator<V, true, Node>;
   using reverse_iterator_type = reverse_iterator<iterator_type>;
   using const_reverse_iterator_type = reverse_iterator<const_iterator_type>;
 
@@ -909,22 +911,23 @@ public:
   void preorder_print() const { preorder_print(root_.get()); }
 
   template <Containable K_, typename V_, typename Comp_, bool AllowDup_,
-            typename T>
-  friend RedBlackTree<K_, V_, Comp_, AllowDup_>
-  join(RedBlackTree<K_, V_, Comp_, AllowDup_> &&tree1, T &&raw_value,
-       RedBlackTree<K_, V_, Comp_, AllowDup_> &&tree2) requires
+            typename Node_, typename Derived_, typename T>
+  friend RedBlackTree<K_, V_, Comp_, AllowDup_, Node_, Derived_>
+  join(RedBlackTree<K_, V_, Comp_, AllowDup_, Node_, Derived_> &&tree1,
+       T &&raw_value,
+       RedBlackTree<K_, V_, Comp_, AllowDup_, Node_, Derived_> &&tree2) requires
       is_constructible_v<V_, remove_cvref_t<T>>;
 
   [[nodiscard]] ptrdiff_t get_potential() const noexcept { return potential_; }
 };
 
-template <Containable K, typename V, typename Comp, bool AllowDup, typename T>
-RedBlackTree<K, V, Comp, AllowDup>
-join(RedBlackTree<K, V, Comp, AllowDup> &&tree1, T &&raw_value,
-     RedBlackTree<K, V, Comp, AllowDup> &&tree2) requires
+template <Containable K, typename V, typename Comp, bool AllowDup,
+          typename Node, typename Derived, typename T>
+RedBlackTree<K, V, Comp, AllowDup, Node, Derived>
+join(RedBlackTree<K, V, Comp, AllowDup, Node, Derived> &&tree1, T &&raw_value,
+     RedBlackTree<K, V, Comp, AllowDup, Node, Derived> &&tree2) requires
     is_constructible_v<V, remove_cvref_t<T>> {
-  using Tree = RedBlackTree<K, V, Comp, AllowDup>;
-  using Node = RBTreeNode<V>;
+  using Tree = RedBlackTree<K, V, Comp, AllowDup, Node, Derived>;
   V mid_value{forward<T>(raw_value)};
   assert(tree1.empty() || !Comp{}(proj(mid_value), proj(*tree1.rbegin())));
   assert(tree2.empty() || !Comp{}(proj(*tree2.begin()), proj(mid_value)));
@@ -1009,16 +1012,22 @@ join(RedBlackTree<K, V, Comp, AllowDup> &&tree1, T &&raw_value,
 } // namespace detail
 
 template <Containable K, typename Comp = less<K>>
-using TreeSet = detail::RedBlackTree<K, K, Comp, false>;
+using TreeSet =
+    detail::RedBlackTree<K, K, Comp, false, detail::RBTreeNode<K, void>, void>;
 
 template <Containable K, typename Comp = less<K>>
-using TreeMultiSet = detail::RedBlackTree<K, K, Comp, true>;
+using TreeMultiSet =
+    detail::RedBlackTree<K, K, Comp, true, detail::RBTreeNode<K, void>, void>;
 
 template <Containable K, Containable V, typename Comp = less<K>>
-using TreeMap = detail::RedBlackTree<K, pair<const K, V>, Comp, false>;
+using TreeMap =
+    detail::RedBlackTree<K, pair<const K, V>, Comp, false,
+                         detail::RBTreeNode<pair<const K, V>, void>, void>;
 
 template <Containable K, Containable V, typename Comp = less<K>>
-using TreeMultiMap = detail::RedBlackTree<K, pair<const K, V>, Comp, true>;
+using TreeMultiMap =
+    detail::RedBlackTree<K, pair<const K, V>, Comp, true,
+                         detail::RBTreeNode<pair<const K, V>, void>, void>;
 
 } // namespace frozenca::hard
 
