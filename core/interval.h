@@ -5,15 +5,14 @@
 
 namespace frozenca {
 
-class Interval {
-public:
-  Interval(float a, float b) : a{a}, b{b} { assert(a <= b); }
-  [[nodiscard]] float first() const { return a; }
-  [[nodiscard]] float second() const { return b; }
-
-private:
-  float a = 0.0f;
-  float b = 1.0f;
+struct Interval {
+  float first_ = 0.0f;
+  float second_ = 0.0f;
+  Interval() = default;
+  Interval(float first, float second) : first_{first}, second_{second} { assert(first_ <= second_); }
+  [[nodiscard]] float length() const noexcept {
+    return second_ - first_;
+  }
 };
 
 } // namespace frozenca
