@@ -56,6 +56,10 @@ public:
     return tree_search_iterative(root_.get(), key);
   }
 
+  [[nodiscard]] bool contains(const T &key) const {
+    return (tree_search(key) != nullptr);
+  }
+
   Node *tree_minimum() const { return tree_minimum(root_.get()); }
 
   Node *tree_maximum() const { return tree_maximum(root_.get()); }
@@ -68,9 +72,7 @@ public:
     return tree_maximum_recursive(root_.get());
   }
 
-  int tree_height() const {
-    return tree_height(root_.get());
-  }
+  int tree_height() const { return tree_height(root_.get()); }
 
   void tree_insert(const T &key) {
     auto z = make_unique<Node>(key);
@@ -95,6 +97,8 @@ public:
     verify();
   }
 
+  void insert(const T &key) { tree_insert(key); }
+
   void tree_insert_recursive(const T &key) {
     auto z = make_unique<Node>(key);
     tree_insert_recursive(root_.get(), nullptr, move(z));
@@ -102,7 +106,7 @@ public:
   }
 
 private:
-  static int tree_height(Node* root) {
+  static int tree_height(Node *root) {
     if (!root) {
       return 0;
     }
@@ -150,9 +154,9 @@ private:
     }
   }
 
-  void tree_delete(Node *z) {
+  bool tree_delete(Node *z) {
     if (!z) {
-      return;
+      return false;
     }
     if (!z->left_) {
       transplant(z, move(z->right_)); // replace z by its right child
@@ -207,6 +211,7 @@ private:
         y->right_->parent_ = y;
       }
     }
+    return true;
   }
 
   void tree_delete_pred(Node *z) {
@@ -398,6 +403,8 @@ public:
     verify();
   }
 
+  bool erase(const T &key) { return tree_delete(tree_search(key)); }
+
   static Node *tree_search(Node *node, const T &key) {
     if (!node || key == node->key_) {
       return node;
@@ -478,6 +485,45 @@ public:
       }
       return parent;
     }
+  }
+
+private:
+  vector<T> inorder_walk() const {
+    vector<T> walk;
+    auto curr = tree_minimum();
+    while (curr) {
+      walk.push_back(curr->key_);
+      curr = tree_successor(curr);
+    }
+    return walk;
+  }
+
+  unique_ptr<Node> construct_balanced_tree(const vector<T> &walk, index_t first,
+                                           index_t last, float alpha) {
+    if (first >= last || last > ssize(walk)) {
+      return nullptr;
+    }
+    auto mid = first + static_cast<index_t>((last - first) * alpha);
+    auto root = make_unique<Node>(walk[mid]);
+    root->left_ = construct_balanced_tree(walk, first, mid, alpha);
+    if (root->left_) {
+      root->left_->parent_ = root.get();
+    }
+    root->right_ = construct_balanced_tree(walk, mid + 1, last, alpha);
+    if (root->right_) {
+      root->right_->parent_ = root.get();
+    }
+    return root;
+  }
+
+public:
+  void tree_balance(float alpha = 0.5) {
+    if (!root_) {
+      return;
+    }
+    auto walk = inorder_walk();
+    auto new_root = construct_balanced_tree(walk, 0, ssize(walk), alpha);
+    swap(root_, new_root);
   }
 
   friend ostream &operator<<(ostream &os, const BinarySearchTree<T> &tree) {

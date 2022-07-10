@@ -85,7 +85,8 @@ template <Containable T> struct RBTreeNode {
   }
 };
 
-template <Containable T, bool Const, typename Node = RBTreeNode<T>> class BSTIterator {
+template <Containable T, bool Const, typename Node = RBTreeNode<T>>
+class BSTIterator {
 public:
   using difference_type = ptrdiff_t;
   using value_type = T;
@@ -268,6 +269,7 @@ public:
   iterator_type begin_;
   ptrdiff_t size_ = 0;
   ptrdiff_t bh_ = 0;
+  ptrdiff_t potential_ = 0;
 
   RedBlackTree() = default;
   RedBlackTree(const RedBlackTree &other) {
@@ -415,6 +417,7 @@ private:
           y->black_ = true;
           z->parent_->parent_->black_ = false;
           z = z->parent_->parent_;
+          potential_++;
         } else {
           // case 2
           if (z == z->parent_->right_.get()) {
@@ -434,6 +437,7 @@ private:
           y->black_ = true;
           z->parent_->parent_->black_ = false;
           z = z->parent_->parent_;
+          potential_++;
         } else {
           // case 2
           if (z == z->parent_->left_.get()) {
@@ -581,6 +585,7 @@ private:
           w->black_ = false;
           x = xp;
           xp = xp->parent_;
+          potential_++;
         } else {
           if (!w->right_ || w->right_->black_) {
             // case 3
@@ -598,6 +603,7 @@ private:
           left_rotate(xp);
           x = root_.get();
           ++bh_;
+          potential_++;
         }
       } else { // same as the above, but with "right" and "left" exchanged
         auto w = xp->left_.get(); // w is x's sibling
@@ -615,6 +621,7 @@ private:
           w->black_ = false;
           x = xp;
           xp = xp->parent_;
+          potential_++;
         } else {
           if (!w->left_ || w->left_->black_) {
             // case 3
@@ -632,6 +639,7 @@ private:
           right_rotate(xp);
           x = root_.get();
           ++bh_;
+          potential_++;
         }
       }
     }
@@ -906,6 +914,8 @@ public:
   join(RedBlackTree<K_, V_, Comp_, AllowDup_> &&tree1, T &&raw_value,
        RedBlackTree<K_, V_, Comp_, AllowDup_> &&tree2) requires
       is_constructible_v<V_, remove_cvref_t<T>>;
+
+  [[nodiscard]] ptrdiff_t get_potential() const noexcept { return potential_; }
 };
 
 template <Containable K, typename V, typename Comp, bool AllowDup, typename T>
