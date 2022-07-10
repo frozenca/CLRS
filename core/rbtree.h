@@ -389,6 +389,7 @@ protected:
     }
     y_ptr->left_ = move(x_holder); // make x become y's left child.
     y_ptr->left_->parent_ = y_ptr;
+    derived().left_rotate_post(y_ptr, y_ptr->left_.get());
   }
 
   void right_rotate(Node *x) {
@@ -417,10 +418,12 @@ protected:
     }
     y_ptr->right_ = move(x_holder); // make x become y's right child.
     y_ptr->right_->parent_ = y_ptr;
+    derived().right_rotate_post(y_ptr, y_ptr->left_.get());
   }
 
-private:
+protected:
   void insert_fixup(Node *z) {
+    derived().insert_fixup_pre(z);
     while (z && z->parent_ && !z->parent_->black_) {
       if (z->parent_ ==
           z->parent_->parent_->left_.get()) { // is z's parent a left child?
@@ -569,6 +572,7 @@ private:
 
       y->black_ = z_black;
     }
+    derived().erase_fixup_pre(x, xp);
     // if any red-black violations occurred, correct them
     if (orig_black) {
       --bh_;
@@ -1026,7 +1030,30 @@ template <Containable K, typename V, typename Comp, bool AllowDup,
           typename Node>
 class RedBlackTree
     : public RedBlackTreeBase<K, V, Comp, AllowDup, Node,
-                              RedBlackTree<K, V, Comp, AllowDup, Node>> {};
+                              RedBlackTree<K, V, Comp, AllowDup, Node>> {
+
+public:
+  using Base = RedBlackTreeBase<K, V, Comp, AllowDup, Node,
+                                RedBlackTree<K, V, Comp, AllowDup, Node>>;
+  friend class Base;
+
+private:
+  void insert_fixup_pre(const Node *) const noexcept {
+    // do nothing
+  }
+
+  void erase_fixup_pre(const Node*, const Node *) const noexcept {
+    // do nothing
+  }
+
+  void left_rotate_post(const Node *, const Node *) const noexcept {
+    // do nothing
+  }
+
+  void right_rotate_post(const Node *, const Node *) const noexcept {
+    // do nothing
+  }
+};
 
 } // namespace detail
 
