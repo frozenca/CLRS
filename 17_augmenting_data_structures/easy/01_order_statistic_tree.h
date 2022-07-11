@@ -63,13 +63,18 @@ private:
     auto left_black_height = verify(node->left_.get());
     auto right_black_height = verify(node->right_.get());
 
+    if (node->left_ && node->left_->black_) {
+      left_black_height++;
+    }
+    if (node->right_ && node->right_->black_) {
+      right_black_height++;
+    }
+
     // binary search tree properties
     assert(!node->left_ ||
-           (node->left_->parent_ == node &&
-            !Comp{}(this->proj(node->key_), this->proj(node->left_->key_))));
+           (node->left_->parent_ == node && node->key_ >= node->left_->key_));
     assert(!node->right_ ||
-           (node->right_->parent_ == node &&
-            !Comp{}(this->proj(node->right_->key_), this->proj(node->key_))));
+           (node->right_->parent_ == node && node->key_ <= node->right_->key_));
 
     // if a node is red, then both its children are black.
     assert(node->black_ || ((!node->left_ || node->left_->black_) &&
@@ -83,10 +88,10 @@ private:
 
     // to mute unused variable right_black_height compiler warning for release
     // builds..
-    return ((left_black_height + right_black_height) / 2) +
-           ((node->black_) ? 1 : 0);
+    return (left_black_height + right_black_height) / 2;
   }
 
+public:
   void verify() const {
     // the root is black.
     assert(!this->get_root() || this->get_root()->black_);
@@ -136,32 +141,36 @@ protected:
 
 private:
   void left_rotate_post(Node *y, Node *x) {
-    assert(x && y);
-    y->size_ = x->size_;
-    x->size_ = x->correct_size();
+    if (x && y) {
+      y->size_ = x->size_;
+      x->size_ = x->correct_size();
+    }
   }
 
   void right_rotate_post(Node *y, Node *x) {
-    assert(x && y);
-    y->size_ = x->size_;
-    x->size_ = x->correct_size();
+    if (x && y) {
+      y->size_ = x->size_;
+      x->size_ = x->correct_size();
+    }
   }
 
-  void insert_fixup_pre(Node *z) {
-    auto curr = z->parent_;
+  void insert_fixup_pre(Node *, Node *zp) {
+    auto curr = zp;
     while (curr) {
       curr->size_++;
       curr = curr->parent_;
     }
   }
 
-  void erase_fixup_pre(Node *, Node *zp) {
+  void erase_fixup_x(Node *, Node *zp, const hard::detail::BSTChild &) {
     auto curr = zp;
     while (curr) {
       curr->size_--;
       curr = curr->parent_;
     }
   }
+
+  void erase_fixup_zy(Node *z, Node *y) { y->size_ = z->size_; }
 
 public:
   reference_type operator[](ptrdiff_t i) {

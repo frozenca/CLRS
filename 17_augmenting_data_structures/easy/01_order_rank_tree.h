@@ -54,13 +54,18 @@ private:
     auto left_black_height = verify(node->left_.get());
     auto right_black_height = verify(node->right_.get());
 
+    if (node->left_ && node->left_->black_) {
+      left_black_height++;
+    }
+    if (node->right_ && node->right_->black_) {
+      right_black_height++;
+    }
+
     // binary search tree properties
     assert(!node->left_ ||
-           (node->left_->parent_ == node &&
-            !Comp{}(this->proj(node->key_), this->proj(node->left_->key_))));
+           (node->left_->parent_ == node && node->key_ >= node->left_->key_));
     assert(!node->right_ ||
-           (node->right_->parent_ == node &&
-            !Comp{}(this->proj(node->right_->key_), this->proj(node->key_))));
+           (node->right_->parent_ == node && node->key_ <= node->right_->key_));
 
     // if a node is red, then both its children are black.
     assert(node->black_ || ((!node->left_ || node->left_->black_) &&
@@ -72,8 +77,7 @@ private:
 
     // to mute unused variable right_black_height compiler warning for release
     // builds..
-    return ((left_black_height + right_black_height) / 2) +
-           ((node->black_) ? 1 : 0);
+    return (left_black_height + right_black_height) / 2;
   }
 
   void verify() const {
@@ -134,25 +138,45 @@ private:
     x->rank_ -= (y->rank_ + 1);
   }
 
-  void insert_fixup_pre(Node *z) {
-    auto curr = z;
-    while (curr) {
-      if (curr->parent_ && curr == curr->parent_->left_.get()) {
-        curr->parent_->rank_++;
-      }
-      curr = curr->parent_;
-    }
-  }
-
-  void erase_fixup_pre(Node *z, Node *zp) {
+  void insert_fixup_pre(Node *z, Node *zp) {
     auto curr = z;
     auto cp = zp;
     while (cp) {
       if (cp && curr == cp->left_.get()) {
+        cp->rank_++;
+      }
+      curr = cp;
+      cp = cp->parent_;
+    }
+  }
+
+  void erase_fixup_z(Node *z, hard::detail::BSTChild &child) {
+    auto zp = z->parent_;
+    if (!zp) {
+      child = hard::detail::BSTChild::Unused;
+    } else if (z == zp->left_.get()) {
+      child = hard::detail::BSTChild::Left;
+    } else {
+      child = hard::detail::BSTChild::Right;
+    }
+  }
+
+  void erase_fixup_zy(Node *z, Node *y) { y->rank_ = z->rank_; }
+
+  void erase_fixup_x(Node *x, Node *xp, hard::detail::BSTChild &child) {
+    auto curr = x;
+    auto cp = xp;
+    while (cp) {
+      if (cp && child == hard::detail::BSTChild::Left) {
         cp->rank_--;
       }
       curr = cp;
       cp = cp->parent_;
+      if (cp && curr == cp->left_.get()) {
+        child = hard::detail::BSTChild::Left;
+      } else {
+        child = hard::detail::BSTChild::Right;
+      }
     }
   }
 

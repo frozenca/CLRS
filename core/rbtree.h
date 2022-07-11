@@ -225,6 +225,13 @@ private:
     auto left_black_height = verify(node->left_.get());
     auto right_black_height = verify(node->right_.get());
 
+    if (node->left_ && node->left_->black_) {
+      left_black_height++;
+    }
+    if (node->right_ && node->right_->black_) {
+      right_black_height++;
+    }
+
     // binary search tree properties
     assert(!node->left_ ||
            (node->left_->parent_ == node &&
@@ -243,8 +250,7 @@ private:
 
     // to mute unused variable right_black_height compiler warning for release
     // builds..
-    return ((left_black_height + right_black_height) / 2) +
-           ((node->black_) ? 1 : 0);
+    return (left_black_height + right_black_height) / 2;
   }
 
   void verify() const {
@@ -418,12 +424,11 @@ protected:
     }
     y_ptr->right_ = move(x_holder); // make x become y's right child.
     y_ptr->right_->parent_ = y_ptr;
-    derived().right_rotate_post(y_ptr, y_ptr->left_.get());
+    derived().right_rotate_post(y_ptr, y_ptr->right_.get());
   }
 
 protected:
   void insert_fixup(Node *z) {
-    derived().insert_fixup_pre(z);
     while (z && z->parent_ && !z->parent_->black_) {
       if (z->parent_ ==
           z->parent_->parent_->left_.get()) { // is z's parent a left child?
@@ -434,6 +439,7 @@ protected:
           y->black_ = true;
           z->parent_->parent_->black_ = false;
           z = z->parent_->parent_;
+          derived().adjust_bh(z, 1);
           potential_++;
         } else {
           // case 2
@@ -454,6 +460,7 @@ protected:
           y->black_ = true;
           z->parent_->parent_->black_ = false;
           z = z->parent_->parent_;
+          derived().adjust_bh(z, 1);
           potential_++;
         } else {
           // case 2
@@ -470,7 +477,6 @@ protected:
     }
     if (!root_->black_) {
       root_->black_ = true;
-      ++bh_;
     }
   }
 
@@ -504,6 +510,8 @@ protected:
     if (begin_.node_ == z) {
       begin_ = it;
     }
+    BSTChild child = BSTChild::Unused;
+    derived().erase_fixup_z(z, child);
     bool orig_black = z->black_;
     Node *x = nullptr;
     Node *xp = nullptr;
@@ -530,12 +538,13 @@ protected:
           yp->left_->parent_ = yp;
         }
         y = y_holder.get();
-
         // z's right child becomes y's right child
         y->right_ = move(z->right_);
         xp = yp;
+        child = BSTChild::Left;
       } else {
         xp = y;
+        child = BSTChild::Right;
       }
       auto zl = move(z->left_); // extract left of z
       assert(zl);
@@ -549,6 +558,7 @@ protected:
 
       // replace z by its successor y
       // and give z's left child to y, which had no left child
+      derived().erase_fixup_zy(z, y_holder.get());
       bool z_black = z->black_;
       auto zp = z->parent_;
       if (!zp) {
@@ -572,14 +582,14 @@ protected:
 
       y->black_ = z_black;
     }
-    derived().erase_fixup_pre(x, xp);
+    derived().erase_fixup_x(x, xp, child);
     // if any red-black violations occurred, correct them
     if (orig_black) {
-      --bh_;
       erase_fixup(x, xp);
     }
     size_--;
     // add verify(); here to verify.
+    verify();
 
     return it;
   }
@@ -600,6 +610,10 @@ protected:
         if ((!w->left_ || w->left_->black_) &&
             (!w->right_ || w->right_->black_)) {
           // case 2
+          derived().adjust_bh(xp, x, 0);
+          if (xp == root_.get()) {
+            bh_--;
+          }
           w->black_ = false;
           x = xp;
           xp = xp->parent_;
@@ -618,9 +632,10 @@ protected:
           w->black_ = xp->black_;
           xp->black_ = true;
           w->right_->black_ = true;
+          derived().adjust_bh(xp, x, 1);
+          derived().adjust_bh(xp->parent_, xp, 1);
           left_rotate(xp);
           x = root_.get();
-          ++bh_;
           potential_++;
         }
       } else { // same as the above, but with "right" and "left" exchanged
@@ -636,6 +651,10 @@ protected:
         if ((!w->left_ || w->left_->black_) &&
             (!w->right_ || w->right_->black_)) {
           // case 2
+          derived().adjust_bh(xp, x, 0);
+          if (xp == root_.get()) {
+            bh_--;
+          }
           w->black_ = false;
           x = xp;
           xp = xp->parent_;
@@ -654,17 +673,15 @@ protected:
           w->black_ = xp->black_;
           xp->black_ = true;
           w->left_->black_ = true;
+          derived().adjust_bh(xp, x, 1);
+          derived().adjust_bh(xp->parent_, xp, 1);
           right_rotate(xp);
           x = root_.get();
-          ++bh_;
           potential_++;
         }
       }
     }
     if (x) {
-      if (!x->black_) {
-        ++bh_;
-      }
       x->black_ = true;
     }
   }
@@ -768,12 +785,14 @@ protected:
       z_ptr = res.parent_->right_.get();
     }
     assert(z_ptr);
+    derived().insert_fixup_pre(z_ptr, z_ptr->parent_);
     insert_fixup(z_ptr);
     size_++;
     if (!begin_.node_ || Comp{}(proj(z_ptr->key_), proj(*begin_))) {
       begin_ = iterator_type(z_ptr);
     }
     // add verify(); here to verify.
+    verify();
     return z_ptr;
   }
 
@@ -923,6 +942,42 @@ private:
     }
   }
 
+protected:
+  // customizable protected functions for derived classes
+  void adjust_bh(Node* node, ptrdiff_t i) noexcept {
+    if (node == root_.get()) {
+      bh_ += i;
+    }
+  }
+
+  void adjust_bh(const Node*, const Node*, ptrdiff_t) const noexcept {
+    // do nothing
+  }
+
+  void insert_fixup_pre(const Node *, const Node *) const noexcept {
+    // do nothing
+  }
+
+  void erase_fixup_x(const Node *, const Node *, const BSTChild&) const noexcept {
+    // do nothing
+  }
+
+  void erase_fixup_z(const Node *, const BSTChild&) const noexcept {
+    // do nothing
+  }
+
+  void erase_fixup_zy(const Node *, const Node *) const noexcept {
+    // do nothing
+  }
+
+  void left_rotate_post(const Node *, const Node *) const noexcept {
+    // do nothing
+  }
+
+  void right_rotate_post(const Node *, const Node *) const noexcept {
+    // do nothing
+  }
+
 public:
   void preorder_print() const { preorder_print(root_.get()); }
 
@@ -1030,30 +1085,7 @@ template <Containable K, typename V, typename Comp, bool AllowDup,
           typename Node>
 class RedBlackTree
     : public RedBlackTreeBase<K, V, Comp, AllowDup, Node,
-                              RedBlackTree<K, V, Comp, AllowDup, Node>> {
-
-public:
-  using Base = RedBlackTreeBase<K, V, Comp, AllowDup, Node,
-                                RedBlackTree<K, V, Comp, AllowDup, Node>>;
-  friend class Base;
-
-private:
-  void insert_fixup_pre(const Node *) const noexcept {
-    // do nothing
-  }
-
-  void erase_fixup_pre(const Node*, const Node *) const noexcept {
-    // do nothing
-  }
-
-  void left_rotate_post(const Node *, const Node *) const noexcept {
-    // do nothing
-  }
-
-  void right_rotate_post(const Node *, const Node *) const noexcept {
-    // do nothing
-  }
-};
+                              RedBlackTree<K, V, Comp, AllowDup, Node>> {};
 
 } // namespace detail
 
