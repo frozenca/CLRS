@@ -25,13 +25,13 @@ struct RBTrackNode : public hard::detail::RBTreeNodeBase<T, RBTrackNode<T>> {
 
 template <Containable K>
 class TrackTree
-    : public hard::detail::RedBlackTreeBase<K, K, less<K>, false,
+    : public hard::detail::RedBlackTreeBase<K, K, compare_three_way, false,
                                             RBTrackNode<K>, TrackTree<K>> {
 public:
-  using Base = hard::detail::RedBlackTreeBase<K, K, less<K>, false,
+  using Base = hard::detail::RedBlackTreeBase<K, K, compare_three_way, false,
                                               RBTrackNode<K>, TrackTree<K>>;
   friend class Base;
-  using Comp = less<K>;
+  using Comp = compare_three_way;
   using Node = RBTrackNode<K>;
   using key_type = Base::key_type;
   using reference_type = Base::reference_type;

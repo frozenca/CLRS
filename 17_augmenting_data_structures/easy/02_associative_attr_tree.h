@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
-#include <common.h>
+#include <ranges>
 #include <rbtree.h>
 #include <string>
 #include <vector>
@@ -34,6 +34,7 @@ requires(BinaryOp<F, AttrType> &&is_convertible_v<
           T, AttrNode<T, AttrType, F, SetDefault>> {
   using Base =
       hard::detail::RBTreeNodeBase<T, AttrNode<T, AttrType, F, SetDefault>>;
+  using attr_type = AttrType;
   AttrType attr_ = {};
 
   AttrNode() : Base() { attr_ = get_default(); }
@@ -60,21 +61,24 @@ requires(BinaryOp<F, AttrType> &&is_convertible_v<
   }
 };
 
-template <Containable K, typename T, typename F, typename SetDefault>
-class AttrTree
-    : public hard::detail::RedBlackTreeBase<
-          K, K, less<K>, false, AttrNode<K, T, F, typename SetDefault>,
-          AttrTree<K, T, F, SetDefault>> {
+template <Containable K, typename Comp, typename AttrNodeType, typename Derived>
+class AttrTreeBase : public hard::detail::RedBlackTreeBase<
+                         K, K, Comp, false, AttrNodeType,
+                         AttrTreeBase<K, Comp, AttrNodeType, Derived>> {
 public:
-  using Base = hard::detail::RedBlackTreeBase<K, K, less<K>, false,
-                                              AttrNode<K, T, F, SetDefault>,
-                                              AttrTree<K, T, F, SetDefault>>;
+  using Base = hard::detail::RedBlackTreeBase<
+      K, K, Comp, false, AttrNodeType,
+      AttrTreeBase<K, Comp, AttrNodeType, Derived>>;
   friend class Base;
-  using Comp = less<K>;
-  using Node = AttrNode<K, T, F, SetDefault>;
+  using Node = AttrNodeType;
   using key_type = Base::key_type;
   using reference_type = Base::reference_type;
   using const_reference_type = Base::const_reference_type;
+  using iterator_type = Base::iterator_type;
+  using const_iterator_type = Base::const_iterator_type;
+  using reverse_iterator_type = Base::reverse_iterator_type;
+  using const_reverse_iterator_type = Base::const_reverse_iterator_type;
+  using attr_type = Node::attr_type;
 
   Base &base() { return static_cast<Base &>(*this); }
 
@@ -124,7 +128,11 @@ public:
     assert(base().bh_ == verify(this->get_root()));
   }
 
-private:
+  Derived &derived() { return static_cast<Derived &>(*this); }
+
+  const Derived &derived() const { return static_cast<const Derived &>(*this); }
+
+protected:
   void left_rotate_post(Node *y, Node *x) {
     if (x) {
       x->attr_ = x->correct_attr();
@@ -160,15 +168,22 @@ private:
   }
 
 public:
-  [[nodiscard]] T get_attr() const noexcept {
-    return this->get_root() ? this->get_root()->attr_ : T{};
+  [[nodiscard]] attr_type get_attr() const noexcept {
+    return this->get_root() ? this->get_root()->attr_ : attr_type{};
   }
 };
 
-template <Containable K>
-using AttrStatisticTree = AttrTree<K, index_t, plus<index_t>, SetOne<K>>;
+template <Containable K, typename Comp, typename T, typename F,
+          typename SetDefault>
+class AttrTree : public AttrTreeBase<K, Comp, AttrNode<K, T, F, SetDefault>,
+                                     AttrTree<K, Comp, T, F, SetDefault>> {};
 
-using StringConcatTree = AttrTree<string, string, plus<string>, SetKey<string>>;
+template <Containable K>
+using AttrStatisticTree =
+    AttrTree<K, compare_three_way, index_t, plus<index_t>, SetOne<K>>;
+
+using StringConcatTree =
+    AttrTree<string, compare_three_way, string, plus<string>, SetKey<string>>;
 
 } // namespace frozenca
 

@@ -23,13 +23,13 @@ struct RBBHNode : public hard::detail::RBTreeNodeBase<T, RBBHNode<T>> {
 };
 
 template <Containable K>
-class BHTree : public hard::detail::RedBlackTreeBase<K, K, less<K>, false,
+class BHTree : public hard::detail::RedBlackTreeBase<K, K, compare_three_way, false,
                                                      RBBHNode<K>, BHTree<K>> {
 public:
-  using Base = hard::detail::RedBlackTreeBase<K, K, less<K>, false, RBBHNode<K>,
+  using Base = hard::detail::RedBlackTreeBase<K, K, compare_three_way, false, RBBHNode<K>,
                                               BHTree<K>>;
   friend class Base;
-  using Comp = less<K>;
+  using Comp = compare_three_way;
   using Node = RBBHNode<K>;
   using key_type = Base::key_type;
   using reference_type = Base::reference_type;

@@ -38,13 +38,13 @@ struct RBOrderNode : public hard::detail::RBTreeNodeBase<T, RBOrderNode<T>> {
 template <Containable K>
 class OrderStatisticTree
     : public hard::detail::RedBlackTreeBase<
-          K, K, less<K>, false, RBOrderNode<K>, OrderStatisticTree<K>> {
+          K, K, compare_three_way, false, RBOrderNode<K>, OrderStatisticTree<K>> {
 public:
   using Base =
-      hard::detail::RedBlackTreeBase<K, K, less<K>, false, RBOrderNode<K>,
+      hard::detail::RedBlackTreeBase<K, K, compare_three_way, false, RBOrderNode<K>,
                                      OrderStatisticTree<K>>;
   friend class Base;
-  using Comp = less<K>;
+  using Comp = compare_three_way;
   using Node = RBOrderNode<K>;
   using key_type = Base::key_type;
   using reference_type = Base::reference_type;

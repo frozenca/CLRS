@@ -3,7 +3,6 @@
 
 #include <cassert>
 #include <common.h>
-#include <compare>
 #include <iostream>
 #include <random>
 #include <stdexcept>
@@ -194,7 +193,7 @@ template <typename Node> struct BSTSearchResult {
 
 template <Containable K, typename V, typename Comp, bool AllowDup,
           typename Node, typename Derived>
-requires invocable<Comp, K, K>
+requires PartiallyOrderedBy<Comp, K>
 class RedBlackTreeBase;
 
 template <Containable K, typename V, typename Comp, bool AllowDup,
@@ -207,7 +206,7 @@ join(RedBlackTreeBase<K, V, Comp, AllowDup, Node, Derived> &&tree1,
 
 template <Containable K, typename V, typename Comp, bool AllowDup,
           typename Node, typename Derived>
-requires invocable<Comp, K, K>
+requires PartiallyOrderedBy<Comp, K>
 class RedBlackTreeBase {
   // invariant: V is either K or pair<const K, Value> for some Value type.
   static constexpr bool is_set_ = is_same_v<K, V>;
@@ -234,12 +233,13 @@ private:
     }
 
     // binary search tree properties
-    assert(!node->left_ ||
-           (node->left_->parent_ == node &&
-            Comp{}(proj(node->key_), proj(node->left_->key_)) != partial_ordering::less));
+    assert(!node->left_ || (node->left_->parent_ == node &&
+                            Comp{}(proj(node->key_), proj(node->left_->key_)) !=
+                                partial_ordering::less));
     assert(!node->right_ ||
            (node->right_->parent_ == node &&
-            Comp{}(proj(node->right_->key_), proj(node->key_)) != partial_ordering::less));
+            Comp{}(proj(node->right_->key_), proj(node->key_)) !=
+                partial_ordering::less));
 
     // if a node is red, then both its children are black.
     assert(node->black_ || ((!node->left_ || node->left_->black_) &&
@@ -703,7 +703,8 @@ protected:
 
   Node *find_node(const K &key) const {
     auto res = find_lower_bound(key);
-    if (res.bound_ && Comp{}(proj(res.bound_->key_), key) == partial_ordering::equivalent) {
+    if (res.bound_ &&
+        (Comp{}(proj(res.bound_->key_), key) == partial_ordering::equivalent)) {
       return res.bound_;
     } else {
       return nullptr;
@@ -789,7 +790,8 @@ protected:
     derived().insert_fixup_pre(z_ptr, z_ptr->parent_);
     insert_fixup(z_ptr);
     size_++;
-    if (!begin_.node_ || Comp{}(proj(z_ptr->key_), proj(*begin_)) == partial_ordering::less) {
+    if (!begin_.node_ ||
+        Comp{}(proj(z_ptr->key_), proj(*begin_)) == partial_ordering::less) {
       begin_ = iterator_type(z_ptr);
     }
     // add verify(); here to verify.
@@ -812,38 +814,42 @@ protected:
   }
 
 public:
-  iterator_type find(const K &key) { return iterator_type(find_node(key)); }
-
-  const_iterator_type find(const K &key) const {
-    return const_iterator_type(find_node(key));
+  iterator_type find(const K &key) {
+    return iterator_type(derived().find_node(key));
   }
 
-  bool contains(const K &key) const { return find_node(key) != nullptr; }
+  const_iterator_type find(const K &key) const {
+    return const_iterator_type(derived().find_node(key));
+  }
+
+  bool contains(const K &key) const {
+    return derived().find_node(key) != nullptr;
+  }
 
   iterator_type lower_bound(const K &key) {
-    return iterator_type(find_lower_bound(key).bound_);
+    return iterator_type(derived().find_lower_bound(key).bound_);
   }
 
   const_iterator_type lower_bound(const K &key) const {
-    return const_iterator_type(find_lower_bound(key).bound_);
+    return const_iterator_type(derived().find_lower_bound(key).bound_);
   }
 
   iterator_type upper_bound(const K &key) {
-    return iterator_type(find_upper_bound(key).bound_);
+    return iterator_type(derived().find_upper_bound(key).bound_);
   }
 
   const_iterator_type upper_bound(const K &key) const {
-    return const_iterator_type(find_upper_bound(key).bound_);
+    return const_iterator_type(derived().find_upper_bound(key).bound_);
   }
 
   pair<iterator_type, iterator_type> equal_range(const K &key) {
-    auto res = find_equal_range(key);
+    auto res = derived().find_equal_range(key);
     return {iterator_type(res.first), iterator_type(res.second)};
   }
 
   pair<const_iterator_type, const_iterator_type>
   equal_range(const K &key) const {
-    auto res = find_equal_range(key);
+    auto res = derived().find_equal_range(key);
     return {const_iterator_type(res.first), const_iterator_type(res.second)};
   }
 
@@ -855,7 +861,7 @@ public:
     return {lower_bound(a), upper_bound(b)};
   }
 
-private:
+protected:
   template <typename T>
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
   insert_value(T &&key) requires is_same_v<remove_cvref_t<T>, V> {
@@ -864,7 +870,8 @@ private:
       res = find_upper_bound(proj(key));
     } else {
       res = find_lower_bound(proj(key));
-      if (res.bound_ && Comp{}(proj(res.bound_->key_), proj(key)) == partial_ordering::equivalent) {
+      if (res.bound_ && (Comp{}(proj(res.bound_->key_), key) ==
+                         partial_ordering::equivalent)) {
         return {iterator_type(res.bound_), false};
       }
     }
@@ -881,20 +888,21 @@ private:
 public:
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
   insert(const V &key) {
-    return insert_value(key);
+    return derived().insert_value(key);
   }
 
   conditional_t<AllowDup, iterator_type, pair<iterator_type, bool>>
   insert(V &&key) {
-    return insert_value(move(key));
+    return derived().insert_value(move(key));
   }
 
   template <typename T>
-  auto &operator[](T &&raw_key) requires(!is_set_ && !AllowDup) {
+  auto &emplace_or_assign(T &&raw_key) requires(!is_set_ && !AllowDup) {
     K key{forward<T>(raw_key)};
     SearchResult res;
     res = find_lower_bound(key);
-    if (res.bound_ && Comp{}(proj(res.bound_->key_), key) == partial_ordering::equivalent) {
+    if (res.bound_ &&
+        Comp{}(proj(res.bound_->key_), key) == partial_ordering::equivalent) {
       return res.bound_->key_.second;
     }
 
@@ -904,6 +912,11 @@ public:
     return z_ptr->key_.second;
   }
 
+  template <typename T>
+  auto &operator[](T &&raw_key) requires(!is_set_ && !AllowDup) {
+    return derived().emplace_or_assign(forward<T>(raw_key));
+  }
+
   iterator_type erase(iterator_type iter) {
     if (iter == end()) {
       throw invalid_argument("attempt to erase end()");
@@ -911,13 +924,14 @@ public:
     return erase(iter.node_);
   }
 
-  size_t erase(const K &key) {
+  size_t erase_impl(const K &key) {
     if constexpr (AllowDup) {
       auto eqr = find_equal_range(key);
       return erase_range(iterator_type(eqr.first), iterator_type(eqr.second));
     } else {
       auto res = find_lower_bound(proj(key));
-      if (res.bound_ && Comp{}(proj(res.bound_->key_), key) == partial_ordering::equivalent) {
+      if (res.bound_ && (Comp{}(proj(res.bound_->key_), key) ==
+                         partial_ordering::equivalent)) {
         erase(res.bound_);
         return 1;
       } else {
@@ -925,6 +939,8 @@ public:
       }
     }
   }
+
+  size_t erase(const K &key) { return derived().erase_impl(key); }
 
   friend ostream &operator<<(ostream &os, const RedBlackTreeBase &tree) {
     inorder_print(os, tree.root_.get());
@@ -945,13 +961,13 @@ private:
 
 protected:
   // customizable protected functions for derived classes
-  void adjust_bh(Node* node, ptrdiff_t i) noexcept {
+  void adjust_bh(Node *node, ptrdiff_t i) noexcept {
     if (node == root_.get()) {
       bh_ += i;
     }
   }
 
-  void adjust_bh(const Node*, const Node*, ptrdiff_t) const noexcept {
+  void adjust_bh(const Node *, const Node *, ptrdiff_t) const noexcept {
     // do nothing
   }
 
@@ -959,11 +975,12 @@ protected:
     // do nothing
   }
 
-  void erase_fixup_x(const Node *, const Node *, const BSTChild&) const noexcept {
+  void erase_fixup_x(const Node *, const Node *,
+                     const BSTChild &) const noexcept {
     // do nothing
   }
 
-  void erase_fixup_z(const Node *, const BSTChild&) const noexcept {
+  void erase_fixup_z(const Node *, const BSTChild &) const noexcept {
     // do nothing
   }
 

@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <compare>
 #include <concepts>
 #include <cstdint>
 #include <functional>
@@ -15,7 +16,6 @@
 #include <type_traits>
 #include <utility>
 
-
 namespace frozenca {
 
 using namespace std;
@@ -26,7 +26,9 @@ using uindex_t = make_unsigned_t<index_t>;
 namespace {
 
 template <typename... Ts>
-concept AllSame = sizeof...(Ts) < 2 || conjunction_v<is_same<tuple_element_t<0, tuple<Ts...>>, Ts>...>;
+concept AllSame =
+    sizeof...(Ts) < 2 ||
+    conjunction_v<is_same<tuple_element_t<0, tuple<Ts...>>, Ts>...>;
 
 template <typename T>
 concept Scalar = is_scalar_v<T>;
@@ -44,6 +46,21 @@ template <typename H, typename K>
 concept Hashable = requires(H h, K k) {
   { h(k) } -> convertible_to<size_t>;
 };
+
+template <typename F, typename T>
+concept PartiallyOrderedBy = requires(F &&f, const remove_reference_t<T> &t1,
+                                      const remove_reference_t<T> &t2) {
+  { invoke(forward<F>(f), t1, t2) } -> convertible_to<partial_ordering>;
+  { invoke(forward<F>(f), t2, t1) } -> convertible_to<partial_ordering>;
+};
+
+template <typename T>
+struct Max {
+  constexpr float operator()(const T& a, const T& b) const noexcept {
+    return max(a, b);
+  }
+};
+
 
 inline constexpr size_t size_bytes() {
   if constexpr (numeric_limits<size_t>::max() == 0xFFFF) {
