@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <common.h>
+#include <compare>
 #include <iostream>
 #include <random>
 #include <stdexcept>
@@ -235,10 +236,10 @@ private:
     // binary search tree properties
     assert(!node->left_ ||
            (node->left_->parent_ == node &&
-            !Comp{}(proj(node->key_), proj(node->left_->key_))));
+            Comp{}(proj(node->key_), proj(node->left_->key_)) != partial_ordering::less));
     assert(!node->right_ ||
            (node->right_->parent_ == node &&
-            !Comp{}(proj(node->right_->key_), proj(node->key_))));
+            Comp{}(proj(node->right_->key_), proj(node->key_)) != partial_ordering::less));
 
     // if a node is red, then both its children are black.
     assert(node->black_ || ((!node->left_ || node->left_->black_) &&
@@ -702,7 +703,7 @@ protected:
 
   Node *find_node(const K &key) const {
     auto res = find_lower_bound(key);
-    if (res.bound_ && proj(res.bound_->key_) == key) {
+    if (res.bound_ && Comp{}(proj(res.bound_->key_), key) == partial_ordering::equivalent) {
       return res.bound_;
     } else {
       return nullptr;
@@ -714,7 +715,7 @@ protected:
     SearchResult res;
     while (x) {
       res.parent_ = x;
-      if (Comp{}(proj(x->key_), key)) {
+      if (Comp{}(proj(x->key_), key) == partial_ordering::less) {
         res.where_ = BSTChild::Right;
         x = x->right_.get();
       } else {
@@ -731,7 +732,7 @@ protected:
     SearchResult res;
     while (x) {
       res.parent_ = x;
-      if (Comp{}(key, proj(x->key_))) {
+      if (Comp{}(key, proj(x->key_)) == partial_ordering::less) {
         res.where_ = BSTChild::Left;
         res.bound_ = x;
         x = x->left_.get();
@@ -749,10 +750,10 @@ protected:
 
     auto x = root_.get();
     while (x) {
-      if (Comp{}(proj(x->key_), key)) {
+      if (Comp{}(proj(x->key_), key) == partial_ordering::less) {
         x = x->right_.get();
       } else {
-        if (!hi && Comp{}(key, proj(x->key_))) {
+        if (!hi && Comp{}(key, proj(x->key_)) == partial_ordering::less) {
           hi = x;
         }
         lo = x;
@@ -761,7 +762,7 @@ protected:
     }
     x = hi ? hi->left_.get() : root_.get();
     while (x) {
-      if (Comp{}(key, proj(x->key_))) {
+      if (Comp{}(key, proj(x->key_)) == partial_ordering::less) {
         hi = x;
         x = x->left_.get();
       } else {
@@ -788,7 +789,7 @@ protected:
     derived().insert_fixup_pre(z_ptr, z_ptr->parent_);
     insert_fixup(z_ptr);
     size_++;
-    if (!begin_.node_ || Comp{}(proj(z_ptr->key_), proj(*begin_))) {
+    if (!begin_.node_ || Comp{}(proj(z_ptr->key_), proj(*begin_)) == partial_ordering::less) {
       begin_ = iterator_type(z_ptr);
     }
     // add verify(); here to verify.
@@ -863,7 +864,7 @@ private:
       res = find_upper_bound(proj(key));
     } else {
       res = find_lower_bound(proj(key));
-      if (res.bound_ && proj(res.bound_->key_) == proj(key)) {
+      if (res.bound_ && Comp{}(proj(res.bound_->key_), proj(key)) == partial_ordering::equivalent) {
         return {iterator_type(res.bound_), false};
       }
     }
@@ -893,7 +894,7 @@ public:
     K key{forward<T>(raw_key)};
     SearchResult res;
     res = find_lower_bound(key);
-    if (res.bound_ && proj(res.bound_->key_) == key) {
+    if (res.bound_ && Comp{}(proj(res.bound_->key_), key) == partial_ordering::equivalent) {
       return res.bound_->key_.second;
     }
 
@@ -916,7 +917,7 @@ public:
       return erase_range(iterator_type(eqr.first), iterator_type(eqr.second));
     } else {
       auto res = find_lower_bound(proj(key));
-      if (res.bound_ && proj(res.bound_->key_) == key) {
+      if (res.bound_ && Comp{}(proj(res.bound_->key_), key) == partial_ordering::equivalent) {
         erase(res.bound_);
         return 1;
       } else {
@@ -1089,18 +1090,18 @@ class RedBlackTree
 
 } // namespace detail
 
-template <Containable K, typename Comp = less<K>>
+template <Containable K, typename Comp = compare_three_way>
 using TreeSet = detail::RedBlackTree<K, K, Comp, false, detail::RBTreeNode<K>>;
 
-template <Containable K, typename Comp = less<K>>
+template <Containable K, typename Comp = compare_three_way>
 using TreeMultiSet =
     detail::RedBlackTree<K, K, Comp, true, detail::RBTreeNode<K>>;
 
-template <Containable K, Containable V, typename Comp = less<K>>
+template <Containable K, Containable V, typename Comp = compare_three_way>
 using TreeMap = detail::RedBlackTree<K, pair<const K, V>, Comp, false,
                                      detail::RBTreeNode<pair<const K, V>>>;
 
-template <Containable K, Containable V, typename Comp = less<K>>
+template <Containable K, Containable V, typename Comp = compare_three_way>
 using TreeMultiMap = detail::RedBlackTree<K, pair<const K, V>, Comp, true,
                                           detail::RBTreeNode<pair<const K, V>>>;
 

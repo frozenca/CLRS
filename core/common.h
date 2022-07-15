@@ -11,6 +11,7 @@
 #include <memory>
 #include <ranges>
 #include <stdexcept>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -23,6 +24,9 @@ using index_t = ptrdiff_t;
 using uindex_t = make_unsigned_t<index_t>;
 
 namespace {
+
+template <typename... Ts>
+concept AllSame = sizeof...(Ts) < 2 || conjunction_v<is_same<tuple_element_t<0, tuple<Ts...>>, Ts>...>;
 
 template <typename T>
 concept Scalar = is_scalar_v<T>;
