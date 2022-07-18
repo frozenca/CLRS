@@ -1,6 +1,7 @@
 #ifndef __CLRS4_ALLOC_MANAGER_FIXED__
 #define __CLRS4_ALLOC_MANAGER_FIXED__
 
+#include <algorithm>
 #include <cassert>
 #include <common.h>
 #include <limits>
@@ -60,26 +61,20 @@ template <size_t PoolSizeBase = 16UL> class AllocManagerFixed {
 public:
   AllocManagerFixed() { chunks_.reserve((1UL << PoolSizeBase) - 1); }
 
-  auto curr_size() const { return chunks_.size(); }
-
-  size_t do_allocate() {
+  size_t allocate() {
     assert(!empty_chunk_ || empty_chunk_->has_available());
     if (!alloc_chunk_ || alloc_chunk_->is_filled()) {
       if (empty_chunk_) {
         alloc_chunk_ = empty_chunk_;
         empty_chunk_ = nullptr;
       } else {
-        auto it = chunks_.begin();
-        for (;; ++it) {
-          if (it == chunks_.end()) {
-            chunks_.emplace_back();
-            alloc_chunk_ = &chunks_.back();
-            break;
-          }
-          if (!it->is_filled()) {
-            alloc_chunk_ = &*it;
-            break;
-          }
+        auto it = ranges::find_if(
+            chunks_, [](const auto &chunk) { return !chunk.is_filled(); });
+        if (it == chunks_.end()) {
+          chunks_.emplace_back();
+          alloc_chunk_ = &chunks_.back();
+        } else {
+          alloc_chunk_ = &*it;
         }
       }
     } else if (alloc_chunk_ == empty_chunk_) {
@@ -94,8 +89,6 @@ public:
     return alloc_chunk_index * static_cast<size_t>(num_blocks_) +
            index_in_chunk;
   }
-
-  size_t allocate() { return do_allocate(); }
 
   void deallocate(size_t index) noexcept {
     assert(!chunks_.empty());
@@ -130,9 +123,6 @@ public:
         }
         assert(last_chunk->has_available());
         chunks_.pop_back();
-        if ((alloc_chunk_ == last_chunk) || (alloc_chunk_->is_filled())) {
-          alloc_chunk_ = dealloc_chunk;
-        }
       }
       empty_chunk_ = dealloc_chunk;
     }
