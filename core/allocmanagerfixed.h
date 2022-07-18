@@ -2,9 +2,11 @@
 #define __CLRS4_ALLOC_MANAGER_FIXED__
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <common.h>
 #include <limits>
+#include <numeric>
 #include <vector>
 
 namespace frozenca {
@@ -20,10 +22,8 @@ template <size_t PoolSizeBase = 16UL> class AllocManagerFixed {
     static constexpr unsigned char num_blocks_ = AllocManagerFixed::num_blocks_;
 
     Chunk() {
-      unsigned char i = 0;
-      for (unsigned char *p = &data_[0]; p != (&data_[0] + num_blocks_); ++p) {
-        *p = ++i;
-      }
+      // TODO: change to ranges::iota
+      iota(&data_[0], &data_[0] + num_blocks_, static_cast<unsigned char>(1));
     }
 
     unsigned char allocate() {
@@ -54,6 +54,7 @@ template <size_t PoolSizeBase = 16UL> class AllocManagerFixed {
 
   static constexpr unsigned char num_blocks_ =
       numeric_limits<unsigned char>::max();
+
   vector<Chunk> chunks_;
   Chunk *alloc_chunk_ = nullptr;
   Chunk *empty_chunk_ = nullptr;

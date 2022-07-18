@@ -5,6 +5,7 @@
 #include <bit>
 #include <common.h>
 #include <iostream>
+#include <memory_resource>
 #include <ranges>
 #include <stdexcept>
 #include <unordered_map>
@@ -29,13 +30,14 @@ using namespace std;
 //             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //             | Forward pointer to next chunk in list (only used if free)     |
 //    	       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//  	         | Back pointer to previous chunk in list (only used if free)    |
+//  	         | Back pointer to previous chunk in list (only used if free) |
 //     	       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// 	           |             Unused space (multiple of sizeof(Chunk) bytes)    |
-// nextchunk-> +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// 	           |             Unused space (multiple of sizeof(Chunk) bytes)
+// | nextchunk->
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //     `foot:' |             Size of chunk, in bytes (written by prev chunk)   |
 // 	           +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//        	   |             Size of next chunk, in bytes                |0|U|I|
+//        	   |             Size of next chunk, in bytes |0|U|I|
 // 	           +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 struct Chunk {
@@ -104,12 +106,15 @@ private:
   Chunk *top_chunk_ = nullptr;
 
   // store *all* chunks
-  vector<unsigned char> all_chunks_;
+  pmr::vector<unsigned char> all_chunks_;
 
 public:
-  AllocManagerDefault(size_t init_pool_size)
+  AllocManagerDefault(size_t init_pool_size, pmr::memory_resource *mem_res =
+                                                 pmr::get_default_resource())
       : curr_pool_size_{init_pool_size}, fast_bins_(num_fast_bins_, nullptr),
-        small_bins_(num_small_bins_, nullptr), all_chunks_(init_pool_size) {
+        small_bins_(num_small_bins_, nullptr),
+        all_chunks_(init_pool_size,
+                    pmr::polymorphic_allocator<unsigned char>(mem_res)) {
     assert(init_pool_size % chunk_alignment_ == 0);
     top_chunk_ = first_chunk();
     set_size(top_chunk_, init_pool_size);
