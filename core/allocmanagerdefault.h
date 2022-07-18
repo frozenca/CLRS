@@ -1,5 +1,5 @@
-#ifndef __CLRS4_ALLOC_POLICY__
-#define __CLRS4_ALLOC_POLICY__
+#ifndef __CLRS4_ALLOC_MANAGER_DEFAULT__
+#define __CLRS4_ALLOC_MANAGER_DEFAULT__
 
 #include <algorithm>
 #include <bit>
@@ -64,7 +64,7 @@ struct GetSize {
   }
 };
 
-class AllocManager {
+class AllocManagerDefault {
 private:
   static constexpr size_t chunk_alignment_ = sizeof(Chunk);
   static_assert(has_single_bit(chunk_alignment_));
@@ -107,7 +107,7 @@ private:
   vector<unsigned char> all_chunks_;
 
 public:
-  AllocManager(size_t init_pool_size)
+  AllocManagerDefault(size_t init_pool_size)
       : curr_pool_size_{init_pool_size}, fast_bins_(num_fast_bins_, nullptr),
         small_bins_(num_small_bins_, nullptr), all_chunks_(init_pool_size) {
     assert(init_pool_size % chunk_alignment_ == 0);
@@ -674,4 +674,4 @@ public:
 
 } // namespace frozenca
 
-#endif //__CLRS4_ALLOC_POLICY__
+#endif //__CLRS4_ALLOC_MANAGER_DEFAULT__
