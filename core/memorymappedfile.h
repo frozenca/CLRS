@@ -48,9 +48,11 @@ private:
 #endif // Windows
 
 public:
-  MemoryMappedFile(const filesystem::path &path) : path_{path} {
+  MemoryMappedFile(const filesystem::path &path,
+                   size_t init_file_size = new_file_size_)
+      : path_{path} {
     bool exists = filesystem::exists(path);
-    open_file(path.c_str(), exists);
+    open_file(path.c_str(), exists, init_file_size);
     map_file();
   }
 
@@ -64,7 +66,7 @@ public:
   }
 
 private:
-  void open_file(const path_type *path, bool exists) {
+  void open_file(const path_type *path, bool exists, size_t init_file_size) {
 #if __linux__
     flags_ = O_RDWR;
     if (!exists) {
@@ -80,7 +82,7 @@ private:
     }
 
     if (!exists) {
-      if (ftruncate(handle_, new_file_size_) == -1) {
+      if (ftruncate(handle_, init_file_size) == -1) {
         throw runtime_error("failed setting file size\n");
       }
     }
@@ -102,8 +104,8 @@ private:
     }
 
     if (!exists) {
-      LONG sizehigh = (new_file_size_ >> (sizeof(LONG) * 8));
-      LONG sizelow = (new_file_size_ & 0xffffffff);
+      LONG sizehigh = (init_file_size >> (sizeof(LONG) * 8));
+      LONG sizelow = (init_file_size & 0xffffffff);
       DWORD result = SetFilePointer(handle_, sizelow, &sizehigh, FILE_BEGIN);
       if ((result == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) ||
           !SetEndOfFile(handle_)) {

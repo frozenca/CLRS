@@ -54,13 +54,15 @@ concept PartiallyOrderedBy = requires(F &&f, const remove_reference_t<T> &t1,
   { invoke(forward<F>(f), t2, t1) } -> convertible_to<partial_ordering>;
 };
 
-template <typename T>
-struct Max {
-  constexpr float operator()(const T& a, const T& b) const noexcept {
+template <typename T> struct Max {
+  constexpr float operator()(const T &a, const T &b) const noexcept {
     return max(a, b);
   }
 };
 
+template <typename T>
+concept Allocable = Containable<T> && is_trivially_copyable_v<T> &&
+    (sizeof(T) % alignof(T) == 0);
 
 inline constexpr size_t size_bytes() {
   if constexpr (numeric_limits<size_t>::max() == 0xFFFF) {
@@ -85,6 +87,7 @@ inline constexpr size_t size_half() {
 constexpr size_t arr_default_length = 128;
 constexpr size_t hashtable_default_width = 14u;
 constexpr size_t hashtable_default_length = (1u << hashtable_default_width);
+constexpr size_t default_pool_size_ = (1ul << 20ul);
 
 } // anonymous namespace
 } // namespace frozenca

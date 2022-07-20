@@ -1,11 +1,12 @@
-#ifndef __CLRS4_ALLOC_MANAGER_DEFAULT__
-#define __CLRS4_ALLOC_MANAGER_DEFAULT__
+#ifndef __CLRS4_MEMORY_RESOURCE__
+#define __CLRS4_MEMORY_RESOURCE__
 
 #include <algorithm>
 #include <bit>
 #include <common.h>
 #include <iostream>
 #include <memory_resource>
+#include <memorymappedfile.h>
 #include <ranges>
 #include <stdexcept>
 #include <unordered_map>
@@ -66,7 +67,7 @@ struct GetSize {
   }
 };
 
-class AllocManagerDefault {
+class MemoryResource : public pmr::memory_resource {
 private:
   static constexpr size_t chunk_alignment_ = sizeof(Chunk);
   static_assert(has_single_bit(chunk_alignment_));
@@ -79,8 +80,6 @@ private:
   static constexpr size_t min_small_size_ = chunk_alignment_ * num_fast_bins_;
   static constexpr size_t min_large_size_ =
       chunk_alignment_ * (num_small_bins_ + num_fast_bins_);
-
-  size_t curr_pool_size_ = 0;
 
   // bins that store chunks of 32, 64, 96, ..., 224 bytes respectively
   // (or 16, 32, ..., 112)
@@ -106,34 +105,38 @@ private:
   Chunk *top_chunk_ = nullptr;
 
   // store *all* chunks
-  pmr::vector<unsigned char> all_chunks_;
+  unsigned char *all_chunks_ = nullptr;
+  size_t pool_size_ = 0;
 
 public:
-  AllocManagerDefault(size_t init_pool_size, pmr::memory_resource *mem_res =
-                                                 pmr::get_default_resource())
-      : curr_pool_size_{init_pool_size}, fast_bins_(num_fast_bins_, nullptr),
-        small_bins_(num_small_bins_, nullptr),
-        all_chunks_(init_pool_size,
-                    pmr::polymorphic_allocator<unsigned char>(mem_res)) {
-    assert(init_pool_size % chunk_alignment_ == 0);
+  MemoryResource(unsigned char *pool, size_t pool_size)
+      : fast_bins_(num_fast_bins_, nullptr),
+        small_bins_(num_small_bins_, nullptr), all_chunks_{pool},
+        pool_size_{pool_size} {
+    assert(all_chunks_);
+    assert(pool_size_ >= chunk_alignment_ &&
+           (pool_size_ % chunk_alignment_) == 0);
     top_chunk_ = first_chunk();
-    set_size(top_chunk_, init_pool_size);
+    set_size(top_chunk_, pool_size_);
+  }
+
+  explicit MemoryResource(MemoryMappedFile &file)
+      : MemoryResource(static_cast<unsigned char *>(file.data()), file.size()) {
   }
 
 private:
   [[nodiscard]] bool is_begin(const Chunk *chunk) const noexcept {
     assert(chunk);
-    assert(reinterpret_cast<const unsigned char *>(chunk) >=
-           all_chunks_.data());
-    return reinterpret_cast<const unsigned char *>(chunk) == all_chunks_.data();
+    assert(reinterpret_cast<const unsigned char *>(chunk) >= all_chunks_);
+    return reinterpret_cast<const unsigned char *>(chunk) == all_chunks_;
   }
 
   Chunk *first_chunk() noexcept {
-    return reinterpret_cast<Chunk *>(all_chunks_.data());
+    return reinterpret_cast<Chunk *>(all_chunks_);
   }
 
   const Chunk *first_chunk() const noexcept {
-    return reinterpret_cast<const Chunk *>(all_chunks_.data());
+    return reinterpret_cast<const Chunk *>(all_chunks_);
   }
 
   // don't need is_last, as top_chunk_ is always the last chunk
@@ -291,7 +294,7 @@ private:
   }
 
   bool verify() const {
-    assert(!all_chunks_.empty() && all_chunks_.size() == curr_pool_size_);
+    assert(!all_chunks_.empty() && all_chunks_.size() == pool_size_);
     const Chunk *chunk = first_chunk();
     while (chunk) {
       assert(chunk->size_ >= chunk_alignment_ &&
@@ -300,7 +303,7 @@ private:
       if (!next) {
         assert(chunk == top_chunk_ && get_flags(chunk) == 0);
         assert(reinterpret_cast<const unsigned char *>(chunk) + chunk->size_ ==
-               all_chunks_.data() + all_chunks_.size());
+               all_chunks_ + all_chunks_.size());
       }
       chunk = next;
     }
@@ -621,14 +624,17 @@ private:
     return chunk;
   }
 
-  size_t request_to_sz(size_t num_bytes) {
-    return ((num_bytes / chunk_alignment_) * chunk_alignment_) +
-           ((num_bytes % chunk_alignment_) ? chunk_alignment_ : 0);
+  size_t request_to_sz(size_t num_bytes, size_t alignment) {
+    assert((alignment % chunk_alignment_) == 0 ||
+           (chunk_alignment_ % alignment) == 0);
+    auto max_align = max(alignment, chunk_alignment_);
+    return ((num_bytes / max_align) * max_align) +
+           ((num_bytes % max_align) ? max_align : 0);
   }
 
-public:
-  void *alloc_chunk(size_t num_bytes) {
-    num_bytes = request_to_sz(num_bytes);
+private:
+  void *do_allocate(size_t num_bytes, size_t alignment) override {
+    num_bytes = request_to_sz(num_bytes, alignment);
     assert(num_bytes >= min_fast_size_ && num_bytes % chunk_alignment_ == 0);
     if (num_bytes < min_small_size_) {
       auto res = try_alloc_fastbin(num_bytes);
@@ -662,9 +668,14 @@ public:
     return reinterpret_cast<void *>(res);
   }
 
-  void dealloc_chunk(void *ptr) {
-    assert(ptr);
+  void do_deallocate(void *ptr, [[maybe_unused]] size_t bytes,
+                     [[maybe_unused]] size_t alignment) override {
+    assert(static_cast<unsigned char *>(ptr) >= all_chunks_ &&
+           static_cast<unsigned char *>(ptr) < (all_chunks_ + pool_size_));
     Chunk *chunk = reinterpret_cast<Chunk *>(ptr);
+    assert(chunk->size_ == bytes);
+    assert((alignment % chunk_alignment_) == 0 ||
+           (chunk_alignment_ % alignment) == 0);
     assert(get_flags(chunk) == CHUNK_IN_USE);
     set_flags(chunk, 0);
     assert(chunk != top_chunk_);
@@ -675,8 +686,19 @@ public:
     }
     assert(verify());
   }
+
+  bool do_is_equal(const pmr::memory_resource &other) const noexcept override {
+    if (this == &other) {
+      return true;
+    }
+    auto op = dynamic_cast<const MemoryResource *>(&other);
+    return op && op->fast_bins_ == fast_bins_ &&
+           op->small_bins_ == small_bins_ && op->large_bin_ == large_bin_ &&
+           op->unsorted_bin_ == unsorted_bin_ && op->top_chunk_ == top_chunk_ &&
+           op->all_chunks_ == all_chunks_ && op->pool_size_ == pool_size_;
+  }
 };
 
 } // namespace frozenca
 
-#endif //__CLRS4_ALLOC_MANAGER_DEFAULT__
+#endif //__CLRS4_MEMORY_RESOURCE__
