@@ -283,11 +283,13 @@ public:
   using reverse_iterator_type = reverse_iterator<iterator_type>;
   using const_reverse_iterator_type = reverse_iterator<const_iterator_type>;
 
+private:
   iterator_type begin_;
   ptrdiff_t size_ = 0;
   ptrdiff_t bh_ = 0;
   ptrdiff_t potential_ = 0;
 
+public:
   RedBlackTreeBase() = default;
   RedBlackTreeBase(const RedBlackTreeBase &other) {
     if (other.root_) {
@@ -870,7 +872,7 @@ protected:
       res = find_upper_bound(proj(key));
     } else {
       res = find_lower_bound(proj(key));
-      if (res.bound_ && (Comp{}(proj(res.bound_->key_), key) ==
+      if (res.bound_ && (Comp{}(proj(res.bound_->key_), proj(key)) ==
                          partial_ordering::equivalent)) {
         return {iterator_type(res.bound_), false};
       }
@@ -896,6 +898,7 @@ public:
     return derived().insert_value(move(key));
   }
 
+protected:
   template <typename T>
   auto &emplace_or_assign(T &&raw_key) requires(!is_set_ && !AllowDup) {
     K key{forward<T>(raw_key)};
@@ -912,6 +915,7 @@ public:
     return z_ptr->key_.second;
   }
 
+public:
   template <typename T>
   auto &operator[](T &&raw_key) requires(!is_set_ && !AllowDup) {
     return derived().emplace_or_assign(forward<T>(raw_key));
@@ -924,6 +928,7 @@ public:
     return erase(iter.node_);
   }
 
+protected:
   size_t erase_impl(const K &key) {
     if constexpr (AllowDup) {
       auto eqr = find_equal_range(key);
@@ -940,6 +945,7 @@ public:
     }
   }
 
+public:
   size_t erase(const K &key) { return derived().erase_impl(key); }
 
   friend ostream &operator<<(ostream &os, const RedBlackTreeBase &tree) {
