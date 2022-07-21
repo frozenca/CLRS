@@ -267,6 +267,8 @@ public:
   using node_type = Node;
   using size_type = size_t;
   using difference_type = ptrdiff_t;
+  using allocator_type = Alloc;
+  
   // invariant: K cannot be mutated
   // so if V is K, uses const iterator.
   // if V is pair<const K, value>, uses non-const iterator (but only value can
@@ -288,6 +290,7 @@ public:
 
 public:
   BTreeBase() : root_{make_unique<Node>(alloc_)}, begin_{root_.get(), 0} {}
+  explicit BTreeBase(const Alloc& alloc) : alloc_{alloc}, root_{make_unique<Node>(alloc)}, begin_{root_.get(), 0} {}
   BTreeBase(const BTreeBase &other) {
     alloc_ = other.alloc_;
     if (other.root_) {

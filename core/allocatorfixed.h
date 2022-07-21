@@ -56,7 +56,8 @@ public:
                             file.size()) {}
 
 private:
-  void *do_allocate(size_t num_bytes, size_t alignment) override {
+  void *do_allocate([[maybe_unused]] size_t num_bytes,
+                    [[maybe_unused]] size_t alignment) override {
     assert(num_bytes == sizeof(Chunk) && alignment == alignof(Chunk));
     if (free_ == pool_ + pool_size_) {
       throw invalid_argument("fixed allocator out of memory");
@@ -89,19 +90,30 @@ template <Allocable T, size_t Count = 1> class AllocatorFixed {
   pmr::memory_resource *mem_res_;
 
 public:
+  template <typename Other> struct rebind {
+    using other = AllocatorFixed<Other, Count>;
+  };
+
   using value_type = T;
 
   explicit AllocatorFixed(
       pmr::memory_resource *mem_res = pmr::get_default_resource())
       : mem_res_{mem_res} {}
 
+  template <typename Other, size_t CountOther>
+  AllocatorFixed(const AllocatorFixed<Other, CountOther> &other)
+      : AllocatorFixed(other.get_memory_resource()) {}
+
   T *allocate(size_t n) {
-    return reinterpret_cast<T *>(
-        mem_res_->allocate(sizeof(T) * n, align_val_t(alignof(T))));
+    return reinterpret_cast<T *>(mem_res_->allocate(sizeof(T) * n, alignof(T)));
   }
 
   void deallocate(T *ptr, size_t n) {
-    mem_res->deallocate(reinterpret_cast<void *>(ptr), sizeof(T) * n);
+    mem_res_->deallocate(reinterpret_cast<void *>(ptr), sizeof(T) * n);
+  }
+
+  [[nodiscard]] pmr::memory_resource *get_memory_resource() const noexcept {
+    return mem_res_;
   }
 };
 
