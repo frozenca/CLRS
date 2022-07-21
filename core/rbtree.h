@@ -328,6 +328,30 @@ public:
 
   [[nodiscard]] const_iterator_type cend() const noexcept { return {}; }
 
+  [[nodiscard]] reverse_iterator_type rbegin() noexcept {
+    return reverse_iterator_type(begin());
+  }
+
+  [[nodiscard]] const_reverse_iterator_type rbegin() const noexcept {
+    return const_reverse_iterator_type(begin());
+  }
+
+  [[nodiscard]] const_reverse_iterator_type crbegin() const noexcept {
+    return const_reverse_iterator_type(cbegin());
+  }
+
+  [[nodiscard]] reverse_iterator_type rend() noexcept {
+    return reverse_iterator_type(end());
+  }
+
+  [[nodiscard]] const_reverse_iterator_type rend() const noexcept {
+    return const_reverse_iterator_type(end());
+  }
+
+  [[nodiscard]] const_reverse_iterator_type crend() const noexcept {
+    return const_reverse_iterator_type(cend());
+  }
+
   [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
 
   [[nodiscard]] ptrdiff_t size() const noexcept { return size_; }

@@ -21,6 +21,35 @@ template <typename T, typename U> struct TreePairRef<pair<T, U>> {
 
 template <typename TreePair> using PairRefType = TreePairRef<TreePair>::type;
 
+template <Containable K, typename V> struct Projection {
+  const K &operator()(const V &value) const noexcept {
+    if constexpr (is_same_v<K, V>) {
+      return value;
+    } else {
+      return value.first;
+    }
+  }
+};
+
+template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
+          typename Comp, bool AllowDup, typename Alloc>
+requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase;
+
+template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
+          typename Comp, bool AllowDup, typename Alloc, typename T>
+BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> join(
+    BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree1,
+    T &&raw_value,
+    BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree2) requires
+    is_constructible_v<V, remove_cvref_t<T>>;
+
+template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
+          typename Comp, bool AllowDup, typename Alloc, typename T>
+pair<BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>,
+     BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>>
+split(BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree,
+      T &&raw_value) requires is_constructible_v<V, remove_cvref_t<T>>;
+
 template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
           typename Comp, bool AllowDup, typename Alloc>
 requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase {
@@ -30,18 +59,10 @@ requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase {
   // invariant: V is either K or pair<const K, Value> for some Value type.
   static constexpr bool is_set_ = is_same_v<K, V>;
 
-  struct Proj {
-    const K &operator()(const V &value) const noexcept {
-      if constexpr (is_set_) {
-        return value;
-      } else {
-        return value.first;
-      }
-    }
-  };
-
-  static_assert(indirect_strict_weak_order<
-                Comp, projected<ranges::iterator_t<vector<V, Alloc>>, Proj>>);
+  static_assert(
+      indirect_strict_weak_order<
+          Comp,
+          projected<ranges::iterator_t<vector<V, Alloc>>, Projection<K, V>>>);
 
   struct Node {
     // invariant: except root, t - 1 <= #(key) <= 2 * t - 1
@@ -54,7 +75,9 @@ requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase {
     vector<V, Alloc> keys_ = nullptr;
     vector<unique_ptr<Node>> children_;
     Node *parent_ = nullptr;
+    index_t size_ = 0;
     index_t index_ = 0;
+    attr_t height_ = 0;
 
     // can throw bad_alloc
     explicit Node(const Alloc &alloc, bool is_leaf = true) : keys_(alloc) {
@@ -68,9 +91,10 @@ requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase {
 
     void clone(const Node &other) {
       keys_ = other.keys_;
-      index_ = other.index_;
+      size_ = other.size_;
       if (!other.is_leaf()) {
         assert(is_leaf());
+        children_.reserve(other.fanout() * 2);
         children_.resize(other.children_.size());
         for (index_t i = 0; i < ssize(other.children_); ++i) {
           children_[i] =
@@ -78,6 +102,7 @@ requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase {
           children_[i]->clone(other.children_[i]);
           children_[i]->parent_ = this;
           children_[i]->index_ = i;
+          children_[i]->height_ = other.children_[i].height_;
         }
       }
     }
@@ -113,7 +138,7 @@ requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase {
     using iterator_category = bidirectional_iterator_tag;
     using iterator_concept = iterator_category;
 
-    static reference make_ref(value_type &val) noexcept { return ref(val); }
+    static reference make_ref(value_type &val) noexcept { return val; }
   };
 
   struct BTreeConstIterTraits {
@@ -124,9 +149,7 @@ requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase {
     using iterator_category = bidirectional_iterator_tag;
     using iterator_concept = iterator_category;
 
-    static reference make_ref(const value_type &val) noexcept {
-      return cref(val);
-    }
+    static reference make_ref(const value_type &val) noexcept { return val; }
   };
 
   struct BTreeRefIterTraits {
@@ -268,15 +291,16 @@ public:
   using size_type = size_t;
   using difference_type = ptrdiff_t;
   using allocator_type = Alloc;
-  
+  using Proj = Projection<K, V>;
+
   // invariant: K cannot be mutated
-  // so if V is K, uses const iterator.
-  // if V is pair<const K, value>, uses non-const iterator (but only value can
+  // so if V is K, uses a const iterator.
+  // if V is pair<K, V>, uses a non-const iterator (but only value can
   // be mutated)
 
   // invariant: K cannot be mutated
-  // so if V is K, uses const iterator.
-  // if V is pair<const K, value>, uses non-const iterator (but only value can
+  // so if V is K, uses a const iterator.
+  // if V is pair<K, V>, uses a non-const iterator (but only value can
   // be mutated)
   using nonconst_iterator_type = BTreeIterator<BTreeNonConstIterTraits>;
   using iterator_type = BTreeIterator<
@@ -286,11 +310,12 @@ public:
   using const_reverse_iterator_type = reverse_iterator<const_iterator_type>;
 
   iterator_type begin_;
-  size_type size_ = 0;
 
 public:
   BTreeBase() : root_{make_unique<Node>(alloc_)}, begin_{root_.get(), 0} {}
-  explicit BTreeBase(const Alloc& alloc) : alloc_{alloc}, root_{make_unique<Node>(alloc)}, begin_{root_.get(), 0} {}
+  explicit BTreeBase(const Alloc &alloc)
+      : alloc_{alloc}, root_{make_unique<Node>(alloc)}, begin_{root_.get(), 0} {
+  }
   BTreeBase(const BTreeBase &other) {
     alloc_ = other.alloc_;
     if (other.root_) {
@@ -299,7 +324,6 @@ public:
       root_->parent_ = nullptr;
     }
     begin_ = iterator_type(leftmost_leaf(root_.get()), 0);
-    size_ = other.size_;
   }
   BTreeBase &operator=(const BTreeBase &other) {
     BTreeBase tree(other);
@@ -333,6 +357,8 @@ public:
     // invariant: child_0 <= key_0 <= child_1 <= ... <=  key_(N - 1) <=
     // child_N
     if (!node->is_leaf()) {
+      auto num_keys = ssize(node->keys_);
+
       for (index_t i = 0; i < ssize(node->keys_); ++i) {
         assert(!Comp{}(Proj{}(node->keys_[i]),
                        Proj{}(node->children_[i]->keys_.back())));
@@ -342,8 +368,16 @@ public:
         assert(node->children_[i]->parent_ == node);
         // recursive check
         assert(verify(node->children_[i].get()));
+        assert(node->height_ == node->children_[i]->height_ + 1);
+        num_keys += node->children_[i]->size_;
       }
       assert(verify(node->children_.back().get()));
+      assert(node->height_ == node->children_.back()->height_ + 1);
+      num_keys += node->children_.back()->size_;
+      assert(node->size_ == num_keys);
+    } else {
+      assert(node->size_ == ssize(node->keys_));
+      assert(node->height_ == 0);
     }
 
     return true;
@@ -376,14 +410,39 @@ public:
     return const_iterator_type(root_.get(), ssize(root_->keys_));
   }
 
-  [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
+  [[nodiscard]] reverse_iterator_type rbegin() noexcept {
+    return reverse_iterator_type(begin());
+  }
 
-  [[nodiscard]] size_t size() const noexcept { return size_; }
+  [[nodiscard]] const_reverse_iterator_type rbegin() const noexcept {
+    return const_reverse_iterator_type(begin());
+  }
+
+  [[nodiscard]] const_reverse_iterator_type crbegin() const noexcept {
+    return const_reverse_iterator_type(cbegin());
+  }
+
+  [[nodiscard]] reverse_iterator_type rend() noexcept {
+    return reverse_iterator_type(end());
+  }
+
+  [[nodiscard]] const_reverse_iterator_type rend() const noexcept {
+    return const_reverse_iterator_type(end());
+  }
+
+  [[nodiscard]] const_reverse_iterator_type crend() const noexcept {
+    return const_reverse_iterator_type(cend());
+  }
+
+  [[nodiscard]] bool empty() const noexcept { return root_->size_ == 0; }
+
+  [[nodiscard]] size_t size() const noexcept {
+    return static_cast<size_t>(root_->size_);
+  }
 
   void clear() {
     root_ = make_unique<Node>(alloc_);
     begin_ = iterator_type(root_.get(), 0);
-    size_ = 0;
   }
 
 protected:
@@ -430,7 +489,14 @@ protected:
     shift_left(sibling->keys_.begin(), sibling->keys_.end(), 1);
     sibling->keys_.pop_back();
 
+    node->size_++;
+    sibling->size_--;
+
     if (!node->is_leaf()) {
+      const auto orphan_size = sibling->children_.front()->size_;
+      node->size_ += orphan_size;
+      sibling->size_ -= orphan_size;
+
       sibling->children_.front()->parent_ = node;
       sibling->children_.front()->index_ = ssize(node->children_);
       node->children_.push_back(move(sibling->children_.front()));
@@ -458,7 +524,14 @@ protected:
     parent->keys_[node->index_ - 1] = move(sibling->keys_.back());
     sibling->keys_.pop_back();
 
+    node->size_++;
+    sibling->size_--;
+
     if (!node->is_leaf()) {
+      const auto orphan_size = sibling->children_.back()->size_;
+      node->size_ += orphan_size;
+      sibling->size_ -= orphan_size;
+
       node->children_.emplace_back();
       shift_right(node->children_.begin(), node->children_.end(), 1);
       sibling->children_.back()->parent_ = node;
@@ -535,21 +608,27 @@ protected:
         make_unique<Node>(alloc_, y->is_leaf()); // will be y's right sibling
     z->parent_ = x;
     z->index_ = i + 1;
+    z->height_ = y->height_;
 
     auto fanout = y->fanout();
 
     // bring right t keys from y
     ranges::move(y->keys_ | views::drop(fanout), back_inserter(z->keys_));
+    auto z_size = ssize(z->keys_);
     if (!y->is_leaf()) {
+      z->children_.reserve(2 * fanout);
       // bring right half children from y
       ranges::move(y->children_ | views::drop(fanout),
                    back_inserter(z->children_));
       for (auto &&child : z->children_) {
         child->parent_ = z.get();
         child->index_ -= fanout;
+        z_size += child->size_;
       }
       y->children_.resize(fanout);
     }
+    z->size_ = z_size;
+    y->size_ -= (z_size + 1);
 
     x->children_.emplace_back();
     shift_right(x->children_.begin() + i + 1, x->children_.end(), 1);
@@ -570,6 +649,8 @@ protected:
            x->children_[i]->has_minimal_keys() &&
            x->children_[i + 1]->has_minimal_keys());
 
+    auto immigrated_size = ssize(x->children_[i + 1]->keys_);
+
     x->children_[i]->keys_.push_back(move(x->keys_[i]));
     // bring keys of child[i + 1]
     ranges::move(x->children_[i + 1]->keys_,
@@ -582,10 +663,13 @@ protected:
       for (auto &&child : x->children_[i + 1]->children_) {
         child->parent_ = x->children_[i].get();
         child->index_ += fanout;
+        immigrated_size += child->size_;
       }
       ranges::move(x->children_[i + 1]->children_,
                    back_inserter(x->children_[i]->children_));
     }
+    x->children_[i]->size_ += immigrated_size + 1;
+
     // shift children from i + 1 left by 1 (because child[i + 1] is merged)
     shift_left(x->children_.begin() + i + 1, x->children_.end(), 1);
     // shift keys from i left by 1 (because key[i] is merged)
@@ -603,7 +687,7 @@ protected:
   insert_leaf(Node *node, index_t i,
               T &&value) requires is_same_v<remove_cvref_t<T>, V> {
     assert(node && node->is_leaf() && !node->is_full());
-    bool update_begin = (size_ == 0 || Comp{}(Proj{}(value), Proj{}(*begin_)));
+    bool update_begin = (empty() || Comp{}(Proj{}(value), Proj{}(*begin_)));
     node->keys_.emplace_back();
     shift_right(node->keys_.begin() + i, node->keys_.end(), 1);
     node->keys_[i] = forward<T>(value);
@@ -612,7 +696,13 @@ protected:
       assert(node == leftmost_leaf(root_.get()) && i == 0);
       begin_ = iter;
     }
-    size_++;
+
+    auto curr = node;
+    while (curr) {
+      curr->size_++;
+      curr = curr->parent_;
+    }
+
     assert(verify());
     return iter;
   }
@@ -674,8 +764,11 @@ protected:
     if (update_begin) {
       begin_ = iter;
     }
-    assert(size_ > 0);
-    size_--;
+    auto curr = node;
+    while (curr) {
+      curr->size_--;
+      curr = curr->parent_;
+    }
     assert(verify());
     return iter;
   }
@@ -846,7 +939,7 @@ protected:
 
   size_t erase_range(iterator_type first, iterator_type last) {
     if (first == begin_ && last == end()) {
-      auto cnt = size_;
+      auto cnt = size();
       clear();
       return cnt;
     }
@@ -858,17 +951,11 @@ protected:
   }
 
 public:
-  iterator_type find(const K &key) {
-    return iterator_type(search(key));
-  }
+  iterator_type find(const K &key) { return iterator_type(search(key)); }
 
-  const_iterator_type find(const K &key) const {
-    return search(key);
-  }
+  const_iterator_type find(const K &key) const { return search(key); }
 
-  bool contains(const K &key) const {
-    return search(key) != cend();
-  }
+  bool contains(const K &key) const { return search(key) != cend(); }
 
   iterator_type lower_bound(const K &key) {
     return iterator_type(find_lower_bound(key));
@@ -904,6 +991,9 @@ protected:
       // if root is full then make it as a child of the new root
       auto new_root = make_unique<Node>(alloc_, false);
       root_->parent_ = new_root.get();
+      new_root->size_ = root_->size_;
+      new_root->height_ = root_->height_ + 1;
+      new_root->children_.reserve(new_root->fanout() * 2);
       new_root->children_.push_back(move(root_));
       root_ = move(new_root);
       // and split
@@ -933,6 +1023,9 @@ public:
       // if root is full then make it as a child of the new root
       auto new_root = make_unique<Node>(alloc_, false);
       root_->parent_ = new_root.get();
+      new_root->size_ = root_->size_;
+      new_root->height_ = root_->height_ + 1;
+      new_root->children_.reserve(new_root->fanout() * 2);
       new_root->children_.push_back(move(root_));
       root_ = move(new_root);
       // and split
@@ -985,7 +1078,177 @@ public:
       return erase_lb(root_.get(), key);
     }
   }
+
+  template <Containable K_, typename V_, index_t Fanout_, index_t FanoutLeaf_,
+            typename Comp_, bool AllowDup_, typename Alloc_, typename T>
+  friend BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_> join(
+      BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_> &&tree1,
+      T &&raw_value,
+      BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_>
+          &&tree2) requires is_constructible_v<V_, remove_cvref_t<T>>;
+
+  template <Containable K_, typename V_, index_t Fanout_, index_t FanoutLeaf_,
+            typename Comp_, bool AllowDup_, typename Alloc_, typename T>
+  friend pair<BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_>,
+              BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_>>
+  split(
+      BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_> &&tree,
+      T &&raw_value) requires is_constructible_v<V_, remove_cvref_t<T>>;
 };
+
+template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
+          typename Comp, bool AllowDup, typename Alloc, typename T>
+BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> join(
+    BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree1,
+    T &&raw_value,
+    BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree2) requires
+    is_constructible_v<V, remove_cvref_t<T>> {
+  using Tree = BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>;
+  using Node = Tree::node_type;
+  using Proj = Tree::Proj;
+
+  V mid_value{forward<T>(raw_value)};
+  assert(tree1.empty() || !Comp{}(Proj{}(mid_value), Proj{}(*tree1.crbegin())));
+  assert(tree2.empty() || !Comp{}(Proj{}(*tree2.cbegin()), Proj{}(mid_value)));
+  assert(tree1.alloc_ == tree2.alloc_);
+
+  auto height1 = tree1.root_->height_;
+  auto height2 = tree2.root_->height_;
+  auto size1 = tree1.root_->size_;
+  auto size2 = tree2.root_->size_;
+
+  if (height1 >= height2) {
+    Tree new_tree = move(tree1);
+    ptrdiff_t curr_height = height1;
+    Node *curr = new_tree.root_.get();
+    if (new_tree.root_->is_full()) {
+      // if root is full then make it as a child of the new root
+      auto new_root = make_unique<Node>(new_tree.alloc_, false);
+      new_tree.root_->index_ = 0;
+      new_tree.root_->parent_ = new_root.get();
+      new_root->size_ = new_tree.root_->size_;
+      new_root->height_ = new_tree.root_->height_ + 1;
+      new_root->children_.reserve(new_root->fanout() * 2);
+      new_root->children_.push_back(move(new_tree.root_));
+      new_tree.root_ = move(new_root);
+      // and split
+      new_tree.split_child(new_tree.root_.get(), 0);
+      curr = new_tree.root_->children_[1].get();
+    }
+    assert(curr->height_ == height1);
+
+    while (curr && curr_height > height2) {
+      assert(!curr->is_leaf());
+      curr_height--;
+
+      if (curr->children_.back()->is_full()) {
+        new_tree.split_child(curr, ssize(curr->children_) - 1);
+      }
+      curr = curr->children_.back().get();
+    }
+    assert(curr_height == height2);
+    auto parent = curr->parent_;
+    if (!parent) {
+      // tree1 was empty or height of two trees were the same
+      auto new_root = make_unique<Node>(tree1.alloc_);
+      new_root->height_ = new_tree.root_->height_ + 1;
+
+      new_root->keys_.push_back(move(mid_value));
+
+      new_root->children_.reserve(new_root->fanout() * 2);
+
+      new_tree.root_->parent_ = new_root.get();
+      new_tree.root_->index_ = 0;
+      new_root->children_.push_back(move(new_tree.root_));
+
+      tree2.root_->parent_ = new_root.get();
+      tree2.root_->index_ = 1;
+      new_root->children_.push_back(move(tree2.root_));
+
+      new_tree.root_ = move(new_root);
+      new_tree.root_->size_ = size1 + size2 + 1;
+    } else {
+      parent->keys_.push_back(move(mid_value));
+
+      tree2.root_->parent_ = parent;
+      tree2.root_->index_ = ssize(parent->children_);
+      parent->children_.push_back(move(tree2.root_));
+      while (parent) {
+        parent->size_ += (size2 + 1);
+        parent = parent->parent_;
+      }
+    }
+    assert(new_tree.verify());
+    return new_tree;
+  } else {
+    Tree new_tree = move(tree2);
+    ptrdiff_t curr_height = height2;
+    Node *curr = new_tree.root_.get();
+    if (new_tree.root_->is_full()) {
+      // if root is full then make it as a child of the new root
+      auto new_root = make_unique<Node>(new_tree.alloc_, false);
+      new_tree.root_->index_ = 0;
+      new_tree.root_->parent_ = new_root.get();
+      new_root->size_ = new_tree.root_->size_;
+      new_root->height_ = new_tree.root_->height_ + 1;
+      new_root->children_.reserve(new_root->fanout() * 2);
+      new_root->children_.push_back(move(new_tree.root_));
+      new_tree.root_ = move(new_root);
+      // and split
+      new_tree.split_child(new_tree.root_.get(), 0);
+      curr = new_tree.root_->children_[0].get();
+    }
+    assert(curr->height_ == height2);
+
+    while (curr && curr_height > height1) {
+      assert(!curr->is_leaf());
+      curr_height--;
+
+      if (curr->children_.front()->is_full()) {
+        new_tree.split_child(curr, 0);
+      }
+      curr = curr->children_.front().get();
+    }
+    assert(curr_height == height1);
+    auto parent = curr->parent_;
+    assert(parent);
+    parent->keys_.push_back(move(mid_value));
+    rotate(parent->keys_.rbegin(), parent->keys_.rbegin() + 1,
+           parent->keys_.rend());
+
+    auto new_begin = tree1.begin();
+    tree1.root_->parent_ = parent;
+    tree1.root_->index_ = 0;
+    parent->children_.push_back(move(tree1.root_));
+    rotate(parent->children_.rbegin(), parent->children_.rbegin() + 1,
+           parent->children_.rend());
+    for (auto &&child : parent->children_ | views::drop(1)) {
+      child->index_++;
+    }
+    while (parent) {
+      parent->size_ += (size1 + 1);
+      parent = parent->parent_;
+    }
+    new_tree.begin_ = new_begin;
+    assert(new_tree.verify());
+    return new_tree;
+  }
+}
+
+template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
+          typename Comp, bool AllowDup, typename Alloc, typename T>
+pair<BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>,
+     BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>>
+split(BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree,
+      T &&raw_value) requires is_constructible_v<V, remove_cvref_t<T>> {
+  using Tree = BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>;
+  using Node = Tree::node_type;
+  using Proj = Tree::Proj;
+
+  V mid_value{forward<T>(raw_value)};
+
+  auto it = tree.find_lower_bound(mid_value);
+}
 
 } // namespace detail
 

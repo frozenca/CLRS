@@ -21,6 +21,7 @@ namespace frozenca {
 using namespace std;
 
 using index_t = ptrdiff_t;
+using attr_t = int32_t;
 using uindex_t = make_unsigned_t<index_t>;
 
 namespace {
