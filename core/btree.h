@@ -544,11 +544,10 @@ protected:
     }
 
     auto parent = node->parent_;
-    auto fanout = node->fanout();
     assert(node && parent && parent->children_[node->index_].get() == node &&
            node->index_ + 1 < ssize(parent->children_));
     auto sibling = parent->children_[node->index_ + 1].get();
-    assert(ssize(sibling->keys_) >= (fanout - 1) + n);
+    assert(ssize(sibling->keys_) >= (node->fanout() - 1) + n);
 
     // brings one key from parent
     node->keys_.push_back(move(parent->keys_[node->index_]));
@@ -630,11 +629,10 @@ protected:
     }
 
     auto parent = node->parent_;
-    auto fanout = node->fanout();
     assert(node && parent && parent->children_[node->index_].get() == node &&
            node->index_ - 1 >= 0);
     auto sibling = parent->children_[node->index_ - 1].get();
-    assert(ssize(sibling->keys_) >= (fanout - 1) + n);
+    assert(ssize(sibling->keys_) >= (node->fanout() - 1) + n);
 
     // brings n - 1 keys from sibling
     ranges::move(sibling->keys_ | views::drop(ssize(sibling->keys_) - n) |
@@ -1540,12 +1538,9 @@ split(BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree,
   Tree tree_left(tree.alloc_);
   Tree tree_right(tree.alloc_);
 
-  auto orig_size = tree.root_->size_;
-
   if (tree.empty()) {
-    auto left_size = tree_left.root_->size_;
-    auto right_size = tree_right.root_->size_;
-    assert(orig_size == left_size + right_size);
+    assert(tree.root_->size_ ==
+           tree_left.root_->size_ + tree_right.root_->size_);
     return {move(tree_left), move(tree_right)};
   }
 
@@ -1662,10 +1657,10 @@ split(BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree,
   assert(!x && indices.empty());
   assert(tree_left.verify());
   assert(tree_right.verify());
-  auto left_size = tree_left.root_->size_;
-  auto right_size = tree_right.root_->size_;
-  assert(orig_size == left_size + right_size ||
-         orig_size == left_size + right_size + 1);
+  assert(tree.root_->size_ ==
+             tree_left.root_->size_ + tree_right.root_->size_ ||
+         tree.root_->size_ ==
+             tree_left.root_->size_ + tree_right.root_->size_ + 1);
 
   return {move(tree_left), move(tree_right)};
 }
