@@ -814,8 +814,7 @@ protected:
     assert(x && y == x->children_[i].get() && !x->is_leaf() && i >= 0 &&
            i + 1 < ssize(x->children_));
     auto sibling = x->children_[i + 1].get();
-    auto fanout = y->fanout();
-    assert(ssize(y->keys_) + ssize(sibling->keys_) <= 2 * fanout - 2);
+    assert(ssize(y->keys_) + ssize(sibling->keys_) <= 2 * y->fanout() - 2);
 
     auto immigrated_size = ssize(sibling->keys_);
 
