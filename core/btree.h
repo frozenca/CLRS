@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cassert>
 #include <common.h>
+#include <initializer_list>
+#include <iostream>
 #include <ranges>
 #include <vector>
 
@@ -278,10 +280,6 @@ requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase {
     }
   };
 
-private:
-  Alloc alloc_;
-  unique_ptr<Node> root_;
-
 public:
   using key_type = K;
   using value_type = V;
@@ -309,13 +307,23 @@ public:
   using reverse_iterator_type = reverse_iterator<iterator_type>;
   using const_reverse_iterator_type = reverse_iterator<const_iterator_type>;
 
+private:
+  Alloc alloc_;
+  unique_ptr<Node> root_;
   iterator_type begin_;
 
 public:
-  BTreeBase() : root_{make_unique<Node>(alloc_)}, begin_{root_.get(), 0} {}
-  explicit BTreeBase(const Alloc &alloc)
-      : alloc_{alloc}, root_{make_unique<Node>(alloc)}, begin_{root_.get(), 0} {
+  BTreeBase(const Alloc &alloc = Alloc{})
+      : alloc_{alloc}, root_{make_unique<Node>(alloc_)}, begin_{root_.get(),
+                                                                0} {}
+
+  BTreeBase(initializer_list<value_type> init, const Alloc &alloc = Alloc{})
+      : BTreeBase(alloc) {
+    for (auto val : init) {
+      insert(move(val));
+    }
   }
+
   BTreeBase(const BTreeBase &other) {
     alloc_ = other.alloc_;
     if (other.root_) {
@@ -332,6 +340,12 @@ public:
   }
   BTreeBase(BTreeBase &&other) noexcept = default;
   BTreeBase &operator=(BTreeBase &&other) noexcept = default;
+
+  void swap(BTreeBase &other) noexcept {
+    std::swap(alloc_, other.alloc_);
+    std::swap(root_, other.root_);
+    std::swap(begin_, other.begin_);
+  }
 
   bool verify(const Node *node) const {
     // invariant: node never null
@@ -697,6 +711,22 @@ protected:
     return nonconst_iterator_type(end());
   }
 
+  const_iterator_type find_lower_bound(const K &key) const {
+    auto x = root_.get();
+    while (x) {
+      auto i = distance(x->keys_.begin(),
+                        ranges::lower_bound(x->keys_, key, Comp{}, Proj{}));
+      if (x->is_leaf()) {
+        auto it = const_iterator_type(x, i);
+        it.climb();
+        return it;
+      } else {
+        x = x->children_[i].get();
+      }
+    }
+    return cend();
+  }
+
   nonconst_iterator_type find_upper_bound(const K &key) {
     auto x = root_.get();
     while (x) {
@@ -711,6 +741,22 @@ protected:
       }
     }
     return nonconst_iterator_type(end());
+  }
+
+  const_iterator_type find_upper_bound(const K &key) const {
+    auto x = root_.get();
+    while (x) {
+      auto i = distance(x->keys_.begin(),
+                        ranges::upper_bound(x->keys_, key, Comp{}, Proj{}));
+      if (x->is_leaf()) {
+        auto it = const_iterator_type(x, i);
+        it.climb();
+        return it;
+      } else {
+        x = x->children_[i].get();
+      }
+    }
+    return cend();
   }
 
   // split child[i] to child[i], child[i + 1]
@@ -1038,8 +1084,8 @@ protected:
           }
           hints.push_back(0);
         } else {
-          merge_child(x, i);
           auto next = x->children_[i].get();
+          merge_child(next);
           promote_root_if_necessary();
           x = next;
           // i'th key of x is now t - 1'th key of x->children_[i]
@@ -1057,11 +1103,11 @@ protected:
             // x->children_[i] stuffs are shifted right by 1
             hints.back() += 1;
           } else if (i + 1 < ssize(x->children_)) {
-            merge_child(x, i);
+            merge_child(next);
             promote_root_if_necessary();
           } else if (i - 1 >= 0) {
-            merge_child(x, i - 1);
             next = x->children_[i - 1].get();
+            merge_child(next);
             promote_root_if_necessary();
             // x->children_[i] stuffs are shifted right by t
             hints.back() += next->fanout();
@@ -1083,6 +1129,57 @@ protected:
       first = erase(first);
     }
     return cnt;
+  }
+
+  V get_kth(index_t idx) const {
+    auto x = root_.get();
+    while (x) {
+      if (x->is_leaf()) {
+        assert(idx >= 0 && idx < ssize(x->keys_));
+        return x->keys_[idx];
+      } else {
+        assert(!x->children_.empty());
+        index_t i = 0;
+        const auto n = ssize(x->keys_);
+        Node *next = nullptr;
+        for (; i < n; ++i) {
+          auto child_sz = x->children_[i]->size_;
+          if (idx < child_sz) {
+            next = x->children_[i].get();
+            break;
+          } else if (idx == child_sz) {
+            return x->keys_[i];
+          } else {
+            idx -= child_sz + 1;
+          }
+        }
+        if (i == n) {
+          next = x->children_[n].get();
+        }
+        x = next;
+      }
+    }
+    throw runtime_error("unreachable");
+  }
+
+  index_t get_order(const_iterator_type iter) const {
+    auto [node, idx] = iter;
+    index_t order = 0;
+    assert(node);
+    if (!node->is_leaf()) {
+      for (index_t i = 0; i <= idx; ++i) {
+        order += node->children_[i]->size_;
+      }
+    }
+    order += idx;
+    while (node->parent_) {
+      for (index_t i = 0; i < node->index_; ++i) {
+        order += node->parent_->children_[i]->size_;
+      }
+      order += node->index_;
+      node = node->parent_;
+    }
+    return order;
   }
 
 public:
@@ -1116,6 +1213,29 @@ public:
   ranges::subrange<const_iterator_type> equal_range(const K &key) const {
     return {const_iterator_type(find_lower_bound(key)),
             const_iterator_type(find_upper_bound(key))};
+  }
+
+  ranges::subrange<const_iterator_type> enumerate(const K &a,
+                                                  const K &b) const {
+    if (Comp{}(b, a)) {
+      throw invalid_argument("b < a in enumerate()");
+    }
+    return {const_iterator_type(find_lower_bound(a)),
+            const_iterator_type(find_upper_bound(b))};
+  }
+
+  V kth(index_t idx) const {
+    if (idx >= root_->size_) {
+      throw invalid_argument("in kth() k >= size()");
+    }
+    return get_kth(idx);
+  }
+
+  index_t order(const_iterator_type iter) const {
+    if (iter == cend()) {
+      throw invalid_argument("attempt to get order in end()");
+    }
+    return get_order(iter);
   }
 
 protected:
@@ -1214,6 +1334,19 @@ public:
     }
   }
 
+  template <typename Pred> size_t erase_if(Pred pred) {
+    auto old_size = size();
+    auto it = begin_;
+    for (; it != end();) {
+      if (pred(*it)) {
+        it = erase(it);
+      } else {
+        ++it;
+      }
+    }
+    return old_size - size();
+  }
+
   template <Containable K_, typename V_, index_t Fanout_, index_t FanoutLeaf_,
             typename Comp_, bool AllowDup_, typename Alloc_, typename T>
   friend BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_>
@@ -1230,6 +1363,23 @@ public:
   split(
       BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_> &&tree,
       T &&raw_value) requires is_constructible_v<V_, remove_cvref_t<T>>;
+
+  friend ostream &operator<<(ostream &os,
+                             const BTreeBase &tree) requires(is_set_) {
+    auto print = [&]() {
+      if constexpr (is_set_) {
+        for (const auto &v : tree) {
+          os << v << ' ';
+        }
+      } else {
+        for (const auto &[k, v] : tree) {
+          os << '{' << k << ',' << v << '}';
+        }
+      }
+    };
+    print();
+    return os;
+  }
 };
 
 template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
