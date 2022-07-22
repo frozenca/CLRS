@@ -37,11 +37,11 @@ requires(Fanout >= 2 && FanoutLeaf >= 2) class BTreeBase;
 
 template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
           typename Comp, bool AllowDup, typename Alloc, typename T>
-BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> join(
-    BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree1,
-    T &&raw_value,
-    BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree2) requires
-    is_constructible_v<V, remove_cvref_t<T>>;
+BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>
+join(BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree_left,
+     T &&raw_value,
+     BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>
+         &&tree_right) requires is_constructible_v<V, remove_cvref_t<T>>;
 
 template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
           typename Comp, bool AllowDup, typename Alloc, typename T>
@@ -360,6 +360,7 @@ public:
       auto num_keys = ssize(node->keys_);
 
       for (index_t i = 0; i < ssize(node->keys_); ++i) {
+        assert(node->children_[i]);
         assert(!Comp{}(Proj{}(node->keys_[i]),
                        Proj{}(node->children_[i]->keys_.back())));
         assert(!Comp{}(Proj{}(node->children_[i + 1]->keys_.front()),
@@ -384,6 +385,7 @@ public:
   }
 
   bool verify() const {
+    assert(begin_ == iterator_type(leftmost_leaf(root_.get()), 0));
     assert(verify(root_.get()));
     return true;
   }
@@ -474,12 +476,23 @@ protected:
     return curr;
   }
 
+  void promote_root_if_necessary() {
+    if (root_->keys_.empty()) {
+      assert(ssize(root_->children_) == 1);
+      root_ = move(root_->children_[0]);
+      root_->index_ = 0;
+      root_->parent_ = nullptr;
+    }
+  }
+
+  void set_begin() { begin_ = iterator_type(leftmost_leaf(root_.get()), 0); }
+
   // node brings a key from parent
   // parent brings a key from right sibling
   // node brings a child from right sibling
-  void left_rotate(Node *node, Node *parent) {
-    assert(node && parent && node->parent_ == parent &&
-           parent->children_[node->index_].get() == node &&
+  void left_rotate(Node *node) {
+    auto parent = node->parent_;
+    assert(node && parent && parent->children_[node->index_].get() == node &&
            node->index_ + 1 < ssize(parent->children_) &&
            parent->children_[node->index_ + 1]->can_take_key());
     auto sibling = parent->children_[node->index_ + 1].get();
@@ -508,19 +521,69 @@ protected:
     }
   }
 
+  // left_rotate() * n
+  void left_rotate_n(Node *node, index_t n) {
+    assert(n >= 1);
+    if (n == 1) {
+      left_rotate(node);
+      return;
+    }
+
+    auto parent = node->parent_;
+    auto fanout = node->fanout();
+    assert(node && parent && parent->children_[node->index_].get() == node &&
+           node->index_ + 1 < ssize(parent->children_));
+    auto sibling = parent->children_[node->index_ + 1].get();
+    assert(ssize(sibling->keys_) >= (fanout - 1) + n);
+
+    // brings one key from parent
+    node->keys_.push_back(move(parent->keys_[node->index_]));
+    // brings n - 1 keys from sibling
+    ranges::move(sibling->keys_ | views::take(n - 1),
+                 back_inserter(node->keys_));
+    // parent brings one key from sibling
+    parent->keys_[node->index_] = move(sibling->keys_[n - 1]);
+    shift_left(sibling->keys_.begin(), sibling->keys_.end(), n);
+    sibling->keys_.resize(ssize(sibling->keys_) - n);
+
+    node->size_ += n;
+    sibling->size_ -= n;
+
+    if (!node->is_leaf()) {
+      // brings n children from sibling
+      index_t orphan_size = 0;
+      index_t immigrant_index = ssize(node->children_);
+      for (auto &&immigrant : sibling->children_ | views::take(n)) {
+        immigrant->parent_ = node;
+        immigrant->index_ = immigrant_index++;
+        orphan_size += immigrant->size_;
+      }
+      node->size_ += orphan_size;
+      sibling->size_ -= orphan_size;
+
+      ranges::move(sibling->children_ | views::take(n),
+                   back_inserter(node->children_));
+      shift_left(sibling->children_.begin(), sibling->children_.end(), n);
+      sibling->keys_.resize(ssize(sibling->keys_) - n);
+      index_t sibling_index = 0;
+      for (auto &&child : sibling->children_) {
+        child->index_ = sibling_index++;
+      }
+    }
+  }
+
   // node brings a key from parent
   // parent brings a key from left sibling
   // node brings a child from left sibling
-  void right_rotate(Node *node, Node *parent) {
-    assert(node && parent && node->parent_ == parent &&
-           parent->children_[node->index_].get() == node &&
+  void right_rotate(Node *node) {
+    auto parent = node->parent_;
+    assert(node && parent && parent->children_[node->index_].get() == node &&
            node->index_ - 1 >= 0 &&
            parent->children_[node->index_ - 1]->can_take_key());
     auto sibling = parent->children_[node->index_ - 1].get();
 
-    node->keys_.emplace_back();
-    shift_right(node->keys_.begin(), node->keys_.end(), 1);
-    node->keys_.front() = move(parent->keys_[node->index_ - 1]);
+    node->keys_.insert(node->keys_.begin(),
+                       move(parent->keys_[node->index_ - 1]));
     parent->keys_[node->index_ - 1] = move(sibling->keys_.back());
     sibling->keys_.pop_back();
 
@@ -532,14 +595,71 @@ protected:
       node->size_ += orphan_size;
       sibling->size_ -= orphan_size;
 
-      node->children_.emplace_back();
-      shift_right(node->children_.begin(), node->children_.end(), 1);
       sibling->children_.back()->parent_ = node;
       sibling->children_.back()->index_ = 0;
-      node->children_.front() = move(sibling->children_.back());
+
+      node->children_.insert(node->children_.begin(),
+                             move(sibling->children_.back()));
       sibling->children_.pop_back();
       for (auto &&child : node->children_ | views::drop(1)) {
         child->index_++;
+      }
+    }
+  }
+
+  // right_rotate() * n
+  void right_rotate_n(Node *node, index_t n) {
+    assert(n >= 1);
+    if (n == 1) {
+      right_rotate(node);
+      return;
+    }
+
+    auto parent = node->parent_;
+    auto fanout = node->fanout();
+    assert(node && parent && parent->children_[node->index_].get() == node &&
+           node->index_ - 1 >= 0);
+    auto sibling = parent->children_[node->index_ - 1].get();
+    assert(ssize(sibling->keys_) >= (fanout - 1) + n);
+
+    // brings n - 1 keys from sibling
+    ranges::move(sibling->keys_ | views::drop(ssize(sibling->keys_) - n) |
+                     views::take(n - 1),
+                 back_inserter(node->keys_));
+    // brings one key from parent
+    node->keys_.push_back(move(parent->keys_[node->index_ - 1]));
+    // parent brings one key from sibling
+    parent->keys_[node->index_ - 1] = move(sibling->keys_.back());
+    // right rotate n
+    ranges::rotate(node->keys_ | views::reverse, node->keys_.rbegin() + n);
+
+    sibling->keys_.resize(ssize(sibling->keys_) - n);
+
+    node->size_ += n;
+    sibling->size_ -= n;
+
+    if (!node->is_leaf()) {
+      // brings n children from sibling
+      index_t orphan_size = 0;
+      index_t immigrant_index = 0;
+      for (auto &&immigrant :
+           sibling->children_ | views::drop(ssize(sibling->children_) - n)) {
+        immigrant->parent_ = node;
+        immigrant->index_ = immigrant_index++;
+        orphan_size += immigrant->size_;
+      }
+      node->size_ += orphan_size;
+      sibling->size_ -= orphan_size;
+
+      ranges::move(sibling->children_ |
+                       views::drop(ssize(sibling->children_) - n),
+                   back_inserter(node->children_));
+      ranges::rotate(node->children_ | views::reverse,
+                     node->children_.rbegin() + n);
+      sibling->children_.resize(ssize(sibling->children_) - n);
+      index_t child_index = n;
+      for (auto &&child : node->children_ | views::drop(n)) {
+        child->index_ = child_index++;
       }
     }
   }
@@ -594,10 +714,11 @@ protected:
   }
 
   // split child[i] to child[i], child[i + 1]
-  void split_child(Node *x, index_t i) {
-    assert(x);
-    auto y = x->children_[i].get();
-    assert(y && y->is_full() && !x->is_full());
+  void split_child(Node *y) {
+    assert(y);
+    auto i = y->index_;
+    Node *x = y->parent_;
+    assert(x && y == x->children_[i].get() && y->is_full() && !x->is_full());
 
     // split y's 2 * t keys
     // y will have left t - 1 keys
@@ -630,45 +751,43 @@ protected:
     z->size_ = z_size;
     y->size_ -= (z_size + 1);
 
-    x->children_.emplace_back();
-    shift_right(x->children_.begin() + i + 1, x->children_.end(), 1);
-    x->children_[i + 1] = move(z);
+    x->children_.insert(x->children_.begin() + i + 1, move(z));
     for (auto &&child : x->children_ | views::drop(i + 2)) {
       child->index_++;
     }
 
-    x->keys_.emplace_back();
-    shift_right(x->keys_.begin() + i, x->keys_.end(), 1);
-    x->keys_[i] = move(y->keys_[fanout - 1]);
+    x->keys_.insert(x->keys_.begin() + i, move(y->keys_[fanout - 1]));
     y->keys_.resize(fanout - 1);
   }
 
   // merge child[i + 1] and key[i] into child[i]
-  void merge_child(Node *x, index_t i) {
-    assert(x && !x->is_leaf() && i >= 0 && i + 1 < ssize(x->children_) &&
-           x->children_[i]->has_minimal_keys() &&
-           x->children_[i + 1]->has_minimal_keys());
+  void merge_child(Node *y) {
+    assert(y);
+    auto i = y->index_;
+    Node *x = y->parent_;
+    assert(x && y == x->children_[i].get() && !x->is_leaf() && i >= 0 &&
+           i + 1 < ssize(x->children_));
+    auto sibling = x->children_[i + 1].get();
+    auto fanout = y->fanout();
+    assert(ssize(y->keys_) + ssize(sibling->keys_) <= 2 * fanout - 2);
 
-    auto immigrated_size = ssize(x->children_[i + 1]->keys_);
+    auto immigrated_size = ssize(sibling->keys_);
 
-    x->children_[i]->keys_.push_back(move(x->keys_[i]));
+    y->keys_.push_back(move(x->keys_[i]));
     // bring keys of child[i + 1]
-    ranges::move(x->children_[i + 1]->keys_,
-                 back_inserter(x->children_[i]->keys_));
-
-    auto fanout = x->children_[i]->fanout();
+    ranges::move(sibling->keys_, back_inserter(y->keys_));
 
     // bring children of child[i + 1]
-    if (!x->children_[i]->is_leaf()) {
-      for (auto &&child : x->children_[i + 1]->children_) {
-        child->parent_ = x->children_[i].get();
-        child->index_ += fanout;
+    if (!y->is_leaf()) {
+      index_t immigrant_index = ssize(y->children_);
+      for (auto &&child : sibling->children_) {
+        child->parent_ = y;
+        child->index_ = immigrant_index++;
         immigrated_size += child->size_;
       }
-      ranges::move(x->children_[i + 1]->children_,
-                   back_inserter(x->children_[i]->children_));
+      ranges::move(sibling->children_, back_inserter(y->children_));
     }
-    x->children_[i]->size_ += immigrated_size + 1;
+    y->size_ += immigrated_size + 1;
 
     // shift children from i + 1 left by 1 (because child[i + 1] is merged)
     shift_left(x->children_.begin() + i + 1, x->children_.end(), 1);
@@ -676,9 +795,56 @@ protected:
     shift_left(x->keys_.begin() + i, x->keys_.end(), 1);
     x->children_.pop_back();
     x->keys_.pop_back();
-    // adjust index
+
     for (auto &&child : x->children_ | views::drop(i + 1)) {
       child->index_--;
+    }
+  }
+
+  // only used in join() when join() is called by split()
+  // preinvariant: x is the leftmost of the root (left side)
+  // or the rightmost (right side)
+
+  // (left side) merge child[0], child[1] if necessary, and propagate to
+  // possibly the root for right side it's child[n - 2], child[n - 1]
+  void try_merge(Node *x, bool left_side) {
+    assert(x && !x->is_leaf());
+    if (ssize(x->children_) < 2) {
+      return;
+    }
+    if (left_side) {
+      auto first = x->children_[0].get();
+      auto second = x->children_[1].get();
+      auto fanout = first->fanout();
+
+      if (ssize(first->keys_) + ssize(second->keys_) <= 2 * fanout - 2) {
+        // just merge to one node
+        merge_child(first);
+      } else if (ssize(first->keys_) < fanout - 1) {
+        // first borrows key from second
+        auto deficit = (fanout - 1 - ssize(first->keys_));
+
+        // this is mathematically true, otherwise
+        // #(first.keys) + #(second.keys) < 2 * t - 2, so it should be merged
+        // before
+        assert(ssize(second->keys_) > deficit + (fanout - 1));
+        left_rotate_n(first, deficit);
+      }
+    } else {
+      auto rfirst = x->children_.back().get();
+      auto rsecond = x->children_[ssize(x->children_) - 2].get();
+      auto fanout = rfirst->fanout();
+
+      if (ssize(rfirst->keys_) + ssize(rsecond->keys_) <= 2 * fanout - 2) {
+        // just merge to one node
+        merge_child(rsecond);
+      } else if (ssize(rfirst->keys_) < fanout - 1) {
+        // rfirst borrows key from rsecond
+        auto deficit = (fanout - 1 - ssize(rfirst->keys_));
+
+        assert(ssize(rsecond->keys_) > deficit + (fanout - 1));
+        right_rotate_n(rfirst, deficit);
+      }
     }
   }
 
@@ -688,9 +854,8 @@ protected:
               T &&value) requires is_same_v<remove_cvref_t<T>, V> {
     assert(node && node->is_leaf() && !node->is_full());
     bool update_begin = (empty() || Comp{}(Proj{}(value), Proj{}(*begin_)));
-    node->keys_.emplace_back();
-    shift_right(node->keys_.begin() + i, node->keys_.end(), 1);
-    node->keys_[i] = forward<T>(value);
+
+    node->keys_.insert(node->keys_.begin() + i, forward<T>(value));
     iterator_type iter(node, i);
     if (update_begin) {
       assert(node == leftmost_leaf(root_.get()) && i == 0);
@@ -719,7 +884,7 @@ protected:
         return insert_leaf(x, i, forward<T>(key));
       } else {
         if (x->children_[i]->is_full()) {
-          split_child(x, i);
+          split_child(x->children_[i].get());
           if (Comp{}(Proj{}(x->keys_[i]), Proj{}(key))) {
             ++i;
           }
@@ -743,7 +908,7 @@ protected:
         return {insert_leaf(x, i, forward<T>(key)), true};
       } else {
         if (x->children_[i]->is_full()) {
-          split_child(x, i);
+          split_child(x->children_[i].get());
           if (Comp{}(Proj{}(x->keys_[i]), Proj{}(key))) {
             ++i;
           }
@@ -800,14 +965,9 @@ protected:
           // search succ
           x = x->children_[i + 1].get();
         } else {
-          merge_child(x, i);
           auto next = x->children_[i].get();
-          if (x == root_.get() && x->keys_.empty()) {
-            // root is empty, promote the merged child to new root
-            root_ = move(x->children_[i]);
-            root_->index_ = 0;
-            root_->parent_ = nullptr;
-          }
+          merge_child(next);
+          promote_root_if_necessary();
           x = next;
         }
       } else if (x->is_leaf()) {
@@ -818,26 +978,16 @@ protected:
         if (x->children_[i]->has_minimal_keys()) {
           if (i + 1 < ssize(x->children_) &&
               x->children_[i + 1]->can_take_key()) {
-            left_rotate(x->children_[i].get(), x);
+            left_rotate(next);
           } else if (i - 1 >= 0 && x->children_[i - 1]->can_take_key()) {
-            right_rotate(x->children_[i].get(), x);
+            right_rotate(next);
           } else if (i + 1 < ssize(x->children_)) {
-            merge_child(x, i);
-            if (x == root_.get() && x->keys_.empty()) {
-              // root is empty, promote the merged child to new root
-              root_ = move(x->children_[i]);
-              root_->index_ = 0;
-              root_->parent_ = nullptr;
-            }
+            merge_child(next);
+            promote_root_if_necessary();
           } else if (i - 1 >= 0) {
-            merge_child(x, i - 1);
             next = x->children_[i - 1].get();
-            if (x == root_.get() && x->keys_.empty()) {
-              // root is empty, promote the merged child to new root
-              root_ = move(x->children_[i - 1]);
-              root_->index_ = 0;
-              root_->parent_ = nullptr;
-            }
+            merge_child(next);
+            promote_root_if_necessary();
           }
         }
         x = next;
@@ -890,12 +1040,7 @@ protected:
         } else {
           merge_child(x, i);
           auto next = x->children_[i].get();
-          if (x == root_.get() && x->keys_.empty()) {
-            // root is empty, promote the merged child to new root
-            root_ = move(x->children_[i]);
-            root_->index_ = 0;
-            root_->parent_ = nullptr;
-          }
+          promote_root_if_necessary();
           x = next;
           // i'th key of x is now t - 1'th key of x->children_[i]
           hints.push_back(x->fanout() - 1);
@@ -906,28 +1051,18 @@ protected:
         if (x->children_[i]->has_minimal_keys()) {
           if (i + 1 < ssize(x->children_) &&
               x->children_[i + 1]->can_take_key()) {
-            left_rotate(x->children_[i].get(), x);
+            left_rotate(x->children_[i].get());
           } else if (i - 1 >= 0 && x->children_[i - 1]->can_take_key()) {
-            right_rotate(x->children_[i].get(), x);
+            right_rotate(x->children_[i].get());
             // x->children_[i] stuffs are shifted right by 1
             hints.back() += 1;
           } else if (i + 1 < ssize(x->children_)) {
             merge_child(x, i);
-            if (x == root_.get() && x->keys_.empty()) {
-              // root is empty, promote the merged child to new root
-              root_ = move(x->children_[i]);
-              root_->index_ = 0;
-              root_->parent_ = nullptr;
-            }
+            promote_root_if_necessary();
           } else if (i - 1 >= 0) {
             merge_child(x, i - 1);
             next = x->children_[i - 1].get();
-            if (x == root_.get() && x->keys_.empty()) {
-              // root is empty, promote the merged child to new root
-              root_ = move(x->children_[i - 1]);
-              root_->index_ = 0;
-              root_->parent_ = nullptr;
-            }
+            promote_root_if_necessary();
             // x->children_[i] stuffs are shifted right by t
             hints.back() += next->fanout();
           }
@@ -997,7 +1132,7 @@ protected:
       new_root->children_.push_back(move(root_));
       root_ = move(new_root);
       // and split
-      split_child(root_.get(), 0);
+      split_child(root_->children_[0].get());
     }
     if constexpr (AllowDup) {
       return insert_ub(forward<T>(key));
@@ -1029,7 +1164,7 @@ public:
       new_root->children_.push_back(move(root_));
       root_ = move(new_root);
       // and split
-      split_child(root_.get(), 0);
+      split_child(root_->children_[0].get());
     }
 
     K key{forward<T>(raw_key)};
@@ -1044,7 +1179,7 @@ public:
         return insert_leaf(x, i, forward<V>(val))->second;
       } else {
         if (x->children_[i]->is_full()) {
-          split_child(x, i);
+          split_child(x->children_[i].get());
           if (Comp{}(Proj{}(x->keys_[i]), key)) {
             ++i;
           }
@@ -1081,11 +1216,12 @@ public:
 
   template <Containable K_, typename V_, index_t Fanout_, index_t FanoutLeaf_,
             typename Comp_, bool AllowDup_, typename Alloc_, typename T>
-  friend BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_> join(
-      BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_> &&tree1,
-      T &&raw_value,
-      BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_>
-          &&tree2) requires is_constructible_v<V_, remove_cvref_t<T>>;
+  friend BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_>
+  join(BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_>
+           &&tree_left,
+       T &&raw_value,
+       BTreeBase<K_, V_, Fanout_, FanoutLeaf_, Comp_, AllowDup_, Alloc_>
+           &&tree_right) requires is_constructible_v<V_, remove_cvref_t<T>>;
 
   template <Containable K_, typename V_, index_t Fanout_, index_t FanoutLeaf_,
             typename Comp_, bool AllowDup_, typename Alloc_, typename T>
@@ -1098,28 +1234,30 @@ public:
 
 template <Containable K, typename V, index_t Fanout, index_t FanoutLeaf,
           typename Comp, bool AllowDup, typename Alloc, typename T>
-BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> join(
-    BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree1,
-    T &&raw_value,
-    BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree2) requires
-    is_constructible_v<V, remove_cvref_t<T>> {
+BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>
+join(BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree_left,
+     T &&raw_value,
+     BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>
+         &&tree_right) requires is_constructible_v<V, remove_cvref_t<T>> {
   using Tree = BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc>;
   using Node = Tree::node_type;
   using Proj = Tree::Proj;
 
   V mid_value{forward<T>(raw_value)};
-  assert(tree1.empty() || !Comp{}(Proj{}(mid_value), Proj{}(*tree1.crbegin())));
-  assert(tree2.empty() || !Comp{}(Proj{}(*tree2.cbegin()), Proj{}(mid_value)));
-  assert(tree1.alloc_ == tree2.alloc_);
+  assert(tree_left.empty() ||
+         !Comp{}(Proj{}(mid_value), Proj{}(*tree_left.crbegin())));
+  assert(tree_right.empty() ||
+         !Comp{}(Proj{}(*tree_right.cbegin()), Proj{}(mid_value)));
+  assert(tree_left.alloc_ == tree_right.alloc_);
 
-  auto height1 = tree1.root_->height_;
-  auto height2 = tree2.root_->height_;
-  auto size1 = tree1.root_->size_;
-  auto size2 = tree2.root_->size_;
+  auto height_left = tree_left.root_->height_;
+  auto height_right = tree_right.root_->height_;
+  auto size_left = tree_left.root_->size_;
+  auto size_right = tree_right.root_->size_;
 
-  if (height1 >= height2) {
-    Tree new_tree = move(tree1);
-    ptrdiff_t curr_height = height1;
+  if (height_left >= height_right) {
+    Tree new_tree = move(tree_left);
+    ptrdiff_t curr_height = height_left;
     Node *curr = new_tree.root_.get();
     if (new_tree.root_->is_full()) {
       // if root is full then make it as a child of the new root
@@ -1132,25 +1270,25 @@ BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> join(
       new_root->children_.push_back(move(new_tree.root_));
       new_tree.root_ = move(new_root);
       // and split
-      new_tree.split_child(new_tree.root_.get(), 0);
+      new_tree.split_child(new_tree.root_->children_[0].get());
       curr = new_tree.root_->children_[1].get();
     }
-    assert(curr->height_ == height1);
+    assert(curr->height_ == height_left);
 
-    while (curr && curr_height > height2) {
+    while (curr && curr_height > height_right) {
       assert(!curr->is_leaf());
       curr_height--;
 
       if (curr->children_.back()->is_full()) {
-        new_tree.split_child(curr, ssize(curr->children_) - 1);
+        new_tree.split_child(curr->children_.back().get());
       }
       curr = curr->children_.back().get();
     }
-    assert(curr_height == height2);
+    assert(curr_height == height_right);
     auto parent = curr->parent_;
     if (!parent) {
-      // tree1 was empty or height of two trees were the same
-      auto new_root = make_unique<Node>(tree1.alloc_);
+      // tree_left was empty or height of two trees were the same
+      auto new_root = make_unique<Node>(tree_left.alloc_);
       new_root->height_ = new_tree.root_->height_ + 1;
 
       new_root->keys_.push_back(move(mid_value));
@@ -1161,28 +1299,34 @@ BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> join(
       new_tree.root_->index_ = 0;
       new_root->children_.push_back(move(new_tree.root_));
 
-      tree2.root_->parent_ = new_root.get();
-      tree2.root_->index_ = 1;
-      new_root->children_.push_back(move(tree2.root_));
+      tree_right.root_->parent_ = new_root.get();
+      tree_right.root_->index_ = 1;
+      new_root->children_.push_back(move(tree_right.root_));
 
       new_tree.root_ = move(new_root);
-      new_tree.root_->size_ = size1 + size2 + 1;
+      new_tree.try_merge(new_tree.root_.get(), false);
+      new_tree.promote_root_if_necessary();
+      new_tree.root_->size_ = size_left + size_right + 1;
     } else {
       parent->keys_.push_back(move(mid_value));
 
-      tree2.root_->parent_ = parent;
-      tree2.root_->index_ = ssize(parent->children_);
-      parent->children_.push_back(move(tree2.root_));
+      tree_right.root_->parent_ = parent;
+      tree_right.root_->index_ = ssize(parent->children_);
+      parent->children_.push_back(move(tree_right.root_));
+
       while (parent) {
-        parent->size_ += (size2 + 1);
+        parent->size_ += (size_right + 1);
+        new_tree.try_merge(parent, false);
         parent = parent->parent_;
       }
+      new_tree.promote_root_if_necessary();
     }
+    assert(new_tree.root_->size_ == size_left + size_right + 1);
     assert(new_tree.verify());
     return new_tree;
   } else {
-    Tree new_tree = move(tree2);
-    ptrdiff_t curr_height = height2;
+    Tree new_tree = move(tree_right);
+    ptrdiff_t curr_height = height_right;
     Node *curr = new_tree.root_.get();
     if (new_tree.root_->is_full()) {
       // if root is full then make it as a child of the new root
@@ -1195,41 +1339,40 @@ BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> join(
       new_root->children_.push_back(move(new_tree.root_));
       new_tree.root_ = move(new_root);
       // and split
-      new_tree.split_child(new_tree.root_.get(), 0);
+      new_tree.split_child(new_tree.root_->children_[0].get());
       curr = new_tree.root_->children_[0].get();
     }
-    assert(curr->height_ == height2);
+    assert(curr->height_ == height_right);
 
-    while (curr && curr_height > height1) {
+    while (curr && curr_height > height_left) {
       assert(!curr->is_leaf());
       curr_height--;
 
       if (curr->children_.front()->is_full()) {
-        new_tree.split_child(curr, 0);
+        new_tree.split_child(curr->children_[0].get());
       }
       curr = curr->children_.front().get();
     }
-    assert(curr_height == height1);
+    assert(curr_height == height_left);
     auto parent = curr->parent_;
     assert(parent);
-    parent->keys_.push_back(move(mid_value));
-    rotate(parent->keys_.rbegin(), parent->keys_.rbegin() + 1,
-           parent->keys_.rend());
+    parent->keys_.insert(parent->keys_.begin(), move(mid_value));
 
-    auto new_begin = tree1.begin();
-    tree1.root_->parent_ = parent;
-    tree1.root_->index_ = 0;
-    parent->children_.push_back(move(tree1.root_));
-    rotate(parent->children_.rbegin(), parent->children_.rbegin() + 1,
-           parent->children_.rend());
+    auto new_begin = tree_left.begin();
+    tree_left.root_->parent_ = parent;
+    tree_left.root_->index_ = 0;
+    parent->children_.insert(parent->children_.begin(), move(tree_left.root_));
     for (auto &&child : parent->children_ | views::drop(1)) {
       child->index_++;
     }
     while (parent) {
-      parent->size_ += (size1 + 1);
+      parent->size_ += (size_left + 1);
+      new_tree.try_merge(parent, true);
       parent = parent->parent_;
     }
+    new_tree.promote_root_if_necessary();
     new_tree.begin_ = new_begin;
+    assert(new_tree.root_->size_ == size_left + size_right + 1);
     assert(new_tree.verify());
     return new_tree;
   }
@@ -1245,9 +1388,137 @@ split(BTreeBase<K, V, Fanout, FanoutLeaf, Comp, AllowDup, Alloc> &&tree,
   using Node = Tree::node_type;
   using Proj = Tree::Proj;
 
+  Tree tree_left(tree.alloc_);
+  Tree tree_right(tree.alloc_);
+
+  auto orig_size = tree.root_->size_;
+
+  if (tree.empty()) {
+    auto left_size = tree_left.root_->size_;
+    auto right_size = tree_right.root_->size_;
+    assert(orig_size == left_size + right_size);
+    return {move(tree_left), move(tree_right)};
+  }
+
   V mid_value{forward<T>(raw_value)};
 
-  auto it = tree.find_lower_bound(mid_value);
+  auto x = tree.root_.get();
+
+  vector<index_t> indices;
+  while (x) {
+    auto i = distance(x->keys_.begin(),
+                      ranges::lower_bound(x->keys_, mid_value, Comp{}, Proj{}));
+    indices.push_back(i);
+    if (x->is_leaf()) {
+      break;
+    } else {
+      x = x->children_[i].get();
+    }
+  }
+
+  while (!indices.empty()) {
+    auto i = indices.back();
+    indices.pop_back();
+
+    auto lroot = tree_left.root_.get();
+    auto rroot = tree_right.root_.get();
+
+    if (x->is_leaf()) {
+      assert(lroot->size_ == 0 && rroot->size_ == 0);
+
+      if (i > 0) {
+        // send left i keys to lroot
+        ranges::move(x->keys_ | views::take(i), back_inserter(lroot->keys_));
+        lroot->size_ += i;
+      }
+
+      if (i + 1 < ssize(x->keys_)) {
+        // send right n - (i + 1) keys to rroot
+        ranges::move(x->keys_ | views::drop(i + 1),
+                     back_inserter(rroot->keys_));
+        rroot->size_ += ssize(x->keys_) - (i + 1);
+      }
+
+      x->keys_.clear();
+      x = x->parent_;
+    } else {
+      if (i > 0) {
+        Tree supertree_left(tree.alloc_);
+        auto slroot = supertree_left.root_.get();
+        // sltree takes left i - 1 keys, i children
+        // middle key is key[i - 1]
+
+        assert(slroot->size_ == 0);
+
+        ranges::move(x->keys_ | views::take(i - 1),
+                     back_inserter(slroot->keys_));
+        slroot->size_ += (i - 1);
+
+        slroot->children_.reserve(slroot->fanout() * 2);
+
+        ranges::move(x->children_ | views::take(i),
+                     back_inserter(slroot->children_));
+        slroot->height_ = slroot->children_[0]->height_ + 1;
+        for (auto &&sl_child : slroot->children_) {
+          sl_child->parent_ = slroot;
+          slroot->size_ += sl_child->size_;
+        }
+
+        supertree_left.promote_root_if_necessary();
+        supertree_left.set_begin();
+
+        Tree new_tree_left =
+            join(move(supertree_left), move(x->keys_[i - 1]), move(tree_left));
+        tree_left = move(new_tree_left);
+      }
+
+      if (i + 1 < ssize(x->children_)) {
+        Tree supertree_right(tree.alloc_);
+        auto srroot = supertree_right.root_.get();
+        // srtree takes right n - (i + 1) keys, n - (i + 1) children
+        // middle key is key[i]
+
+        assert(srroot->size_ == 0);
+
+        ranges::move(x->keys_ | views::drop(i + 1),
+                     back_inserter(srroot->keys_));
+        srroot->size_ += (ssize(x->keys_) - (i + 1));
+
+        srroot->children_.reserve(srroot->fanout() * 2);
+
+        ranges::move(x->children_ | views::drop(i + 1),
+                     back_inserter(srroot->children_));
+        srroot->height_ = srroot->children_[0]->height_ + 1;
+        index_t sr_index = 0;
+        for (auto &&sr_child : srroot->children_) {
+          sr_child->parent_ = srroot;
+          sr_child->index_ = sr_index++;
+          srroot->size_ += sr_child->size_;
+        }
+
+        supertree_right.promote_root_if_necessary();
+        supertree_right.set_begin();
+
+        Tree new_tree_right =
+            join(move(tree_right), move(x->keys_[i]), move(supertree_right));
+        tree_right = move(new_tree_right);
+      }
+
+      x->keys_.clear();
+      x->children_.clear();
+      x = x->parent_;
+    }
+  }
+
+  assert(!x && indices.empty());
+  assert(tree_left.verify());
+  assert(tree_right.verify());
+  auto left_size = tree_left.root_->size_;
+  auto right_size = tree_right.root_->size_;
+  assert(orig_size == left_size + right_size ||
+         orig_size == left_size + right_size + 1);
+
+  return {move(tree_left), move(tree_right)};
 }
 
 } // namespace detail
