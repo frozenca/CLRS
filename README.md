@@ -6,3 +6,6 @@ C++ implementation of CLRS 4/e example codes and exercise for studying purpose. 
 2. Prepare CMake
 3. For example, to run Problem 2.1, copy and paste ```02_getting_started/problems/2-1_insertion_sort_on_small_arrays_in_merge_sort.cpp``` to ```main.cpp```
 4. Run!
+
+# License
+The source code in this repository is licensed under Apache License Version 2.0 with LLVM Exceptions (LICENSE-Apache2-LLVM or https://llvm.org/foundation/relicensing/LICENSE.txt)
