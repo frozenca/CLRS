@@ -43,6 +43,10 @@ concept SpanType = !Scalar<T> && requires(T t) {
 template <typename T>
 concept Containable = is_same_v<remove_cvref_t<T>, T>;
 
+template <typename T>
+concept DiskAllocable = is_same_v<remove_cvref_t<T>, T> &&
+    is_trivially_copyable_v<T> &&(sizeof(T) % alignof(T) == 0);
+
 template <typename H, typename K>
 concept Hashable = requires(H h, K k) {
   { h(k) } -> convertible_to<size_t>;

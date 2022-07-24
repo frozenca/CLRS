@@ -1,16 +1,23 @@
-#ifndef __CLRS4_ALLOCATOR_FIXED__
-#define __CLRS4_ALLOCATOR_FIXED__
+#ifndef __FC_DISK_FIXED_ALLOC_H__
+#define __FC_DISK_FIXED_ALLOC_H__
 
+#include <bit>
+#include <cassert>
 #include <common.h>
+#include <concepts>
+#include <cstdint>
+#include <iostream>
 #include <memory_resource>
-#include <memorymappedfile.h>
-#include <new>
+#include <mmfile.h>
+#include <stdexcept>
+#include <type_traits>
+
 
 namespace frozenca {
 
 using namespace std;
 
-template <Allocable T, size_t Count>
+template <DiskAllocable T, size_t Count>
 class MemoryResourceFixed : public pmr::memory_resource {
   static_assert(Count > 0, "count should be nonzero");
   union Chunk {
@@ -58,7 +65,8 @@ public:
 private:
   void *do_allocate([[maybe_unused]] size_t num_bytes,
                     [[maybe_unused]] size_t alignment) override {
-    assert(num_bytes == sizeof(Chunk) && alignment == alignof(Chunk));
+    assert((num_bytes % sizeof(Chunk)) == 0 &&
+           (alignment % alignof(Chunk)) == 0);
     if (free_ == pool_ + pool_size_) {
       throw invalid_argument("fixed allocator out of memory");
     } else {
@@ -70,13 +78,15 @@ private:
 
   void do_deallocate(void *x, [[maybe_unused]] size_t num_bytes,
                      [[maybe_unused]] size_t alignment) override {
-    assert(num_bytes == sizeof(Chunk) && alignment == alignof(Chunk));
+    assert((num_bytes % sizeof(Chunk) == 0) &&
+           (alignment % alignof(Chunk)) == 0);
     auto x_chunk = reinterpret_cast<Chunk *>(x);
     x_chunk->next_ = free_;
     free_ = x_chunk;
   }
 
-  bool do_is_equal(const pmr::memory_resource &other) const noexcept override {
+  [[nodiscard]] bool
+  do_is_equal(const pmr::memory_resource &other) const noexcept override {
     if (this == &other) {
       return true;
     }
@@ -86,7 +96,7 @@ private:
   }
 };
 
-template <Allocable T, size_t Count = 1> class AllocatorFixed {
+template <DiskAllocable T, size_t Count = 1> class AllocatorFixed {
   pmr::memory_resource *mem_res_;
 
 public:
@@ -105,7 +115,8 @@ public:
       : AllocatorFixed(other.get_memory_resource()) {}
 
   T *allocate(size_t n) {
-    return reinterpret_cast<T *>(mem_res_->allocate(sizeof(T) * n, alignof(T)));
+    return reinterpret_cast<T *>(
+        mem_res_->allocate(sizeof(T) * n, alignment_of_v<T>));
   }
 
   void deallocate(T *ptr, size_t n) {
@@ -117,6 +128,11 @@ public:
   }
 };
 
+template <typename> struct isDiskAlloc : false_type {};
+
+template <DiskAllocable T, size_t Count>
+struct isDiskAlloc<AllocatorFixed<T, Count>> : true_type {};
+
 } // namespace frozenca
 
-#endif //__CLRS4_ALLOCATOR_FIXED__
+#endif //__FC_DISK_FIXED_ALLOC_H__

@@ -1,23 +1,19 @@
-#ifndef __CLRS4_MEMORY_MAPPED_FILE__
-#define __CLRS4_MEMORY_MAPPED_FILE__
+#ifndef __FC_MMFILE_H__
+#define __FC_MMFILE_H__
 
-#include <cassert>
-#include <common.h>
+#include <cstdint>
 #include <filesystem>
-#include <iostream>
 #include <stdexcept>
 
-#if __linux__
+#if _WIN32 || _WIN64
+#include <windows.h>
+#else
 #include <cerrno>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#elif _WIN32 || _WIN64
-#include <windows.h>
-#else
-static_assert(false, "Unsupported OS\n");
 #endif
 
 namespace frozenca {
@@ -27,12 +23,10 @@ using namespace std;
 class MemoryMappedFile {
 public:
   static inline constexpr size_t new_file_size_ = (1UL << 20UL);
-#if __linux__
-  using handle_type = int;
-#elif _WIN32 || _WIN64
+#if _WIN32 || _WIN64
   using handle_type = HANDLE;
 #else
-  static_assert(false, "Unsupported OS\n");
+  using handle_type = int;
 #endif
   using path_type = filesystem::path::value_type;
 
@@ -49,9 +43,13 @@ private:
 
 public:
   MemoryMappedFile(const filesystem::path &path,
-                   size_t init_file_size = new_file_size_)
+                   size_t init_file_size = new_file_size_, bool trunc = false)
       : path_{path} {
     bool exists = filesystem::exists(path);
+    if (exists && trunc) {
+      filesystem::remove(path);
+      exists = false;
+    }
     open_file(path.c_str(), exists, init_file_size);
     map_file();
   }
@@ -67,33 +65,7 @@ public:
 
 private:
   void open_file(const path_type *path, bool exists, size_t init_file_size) {
-#if __linux__
-    flags_ = O_RDWR;
-    if (!exists) {
-      flags_ |= (O_CREAT | O_TRUNC);
-    }
-#ifdef _LARGEFILE64_SOURCE
-    flags |= O_LARGEFILE;
-#endif
-    errno = 0;
-    handle_ = open(path, flags_, S_IRWXU);
-    if (errno != 0) {
-      throw runtime_error("file open failed\n");
-    }
-
-    if (!exists) {
-      if (ftruncate(handle_, init_file_size) == -1) {
-        throw runtime_error("failed setting file size\n");
-      }
-    }
-
-    struct stat info;
-    bool success = (fstat(handle_, &info) != -1);
-    size_ = info.st_size;
-    if (!success) {
-      throw runtime_error("failed querying file size\n");
-    }
-#elif _WIN32 || _WIN64
+#if _WIN32 || _WIN64
     DWORD dwDesiredAccess = GENERIC_READ | GENERIC_WRITE;
     DWORD dwCreationDisposition = exists ? OPEN_EXISTING : CREATE_ALWAYS;
     DWORD dwFlagsandAttributes = FILE_ATTRIBUTE_TEMPORARY;
@@ -138,19 +110,36 @@ private:
       }
     }
 #else
-    static_assert(false, "Unsupported OS\n");
+    flags_ = O_RDWR;
+    if (!exists) {
+      flags_ |= (O_CREAT | O_TRUNC);
+    }
+#ifdef _LARGEFILE64_SOURCE
+    flags_ |= O_LARGEFILE;
+#endif
+    errno = 0;
+    handle_ = open(path, flags_, S_IRWXU);
+    if (errno != 0) {
+      throw runtime_error("file open failed\n");
+    }
+
+    if (!exists) {
+      if (ftruncate(handle_, init_file_size) == -1) {
+        throw runtime_error("failed setting file size\n");
+      }
+    }
+
+    struct stat info;
+    bool success = (fstat(handle_, &info) != -1);
+    size_ = info.st_size;
+    if (!success) {
+      throw runtime_error("failed querying file size\n");
+    }
 #endif
   }
 
   void map_file() {
-#if __linux__
-    void *data =
-        mmap(0, file_size_, PROT_READ | PROT_WRITE, MAP_SHARED, handle_, 0);
-    if (data == reinterpret_cast<void *>(-1)) {
-      throw runtime_error("failed mapping file");
-    }
-    data_ = data;
-#elif _WIN32 || _WIN64
+#if _WIN32 || _WIN64
     DWORD protect = PAGE_READWRITE;
     mapped_handle_ = CreateFileMappingA(handle_, 0, protect, 0, 0, 0);
     if (!mapped_handle_) {
@@ -164,50 +153,44 @@ private:
     }
     data_ = data;
 #else
-    static_assert(false, "Unsupported OS\n");
+    void *data = mmap(0, size_, PROT_READ | PROT_WRITE, MAP_SHARED, handle_, 0);
+    if (data == reinterpret_cast<void *>(-1)) {
+      throw runtime_error("failed mapping file");
+    }
+    data_ = data;
 #endif
   }
 
   bool close_file() noexcept {
-#if __linux__
-    return close(handle_) == 0;
-#elif _WIN32 || _WIN64
+#if _WIN32 || _WIN64
     return CloseHandle(handle_);
 #else
-    static_assert(false, "Unsupported OS\n");
+    return close(handle_) == 0;
 #endif
   }
 
   bool unmap_file() noexcept {
-#if __linux__
-    return (munmap(data_, file_size_) == 0);
-#elif _WIN32 || _WIN64
+#if _WIN32 || _WIN64
     bool error = false;
     error = !UnmapViewOfFile(data_) || error;
     error = !CloseHandle(mapped_handle_) || error;
     mapped_handle_ = NULL;
     return !error;
 #else
-    static_assert(false, "Unsupported OS\n");
+    return (munmap(data_, size_) == 0);
 #endif
   }
 
 public:
-  void resize(ptrdiff_t new_size) {
-    if (new_size < 0) {
-      throw invalid_argument("new size < 0");
-    }
+  void resize(size_t new_size) {
     if (!data_) {
       throw runtime_error("file is closed\n");
     }
     if (!unmap_file()) {
       throw runtime_error("failed unmappping file\n");
     }
-#if __linux__
-    if (ftruncate(handle_, new_size) == -1) {
-      throw runtime_error("failed resizing mapped file\n");
-    }
-#elif _WIN32 || _WIN64
+
+#if _WIN32 || _WIN64
     int64_t offset = SetFilePointer(handle_, 0, 0, FILE_CURRENT);
     if (offset == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
       throw runtime_error("failed querying file pointer");
@@ -223,7 +206,9 @@ public:
     sizelow = (offset & 0xffffffff);
     SetFilePointer(handle_, sizelow, &sizehigh, FILE_BEGIN);
 #else
-    static_assert(false, "Unsupported OS\n");
+    if (ftruncate(handle_, new_size) == -1) {
+      throw runtime_error("failed resizing mapped file\n");
+    }
 #endif
     size_ = static_cast<size_t>(new_size);
     map_file();
@@ -255,4 +240,4 @@ public:
 
 } // namespace frozenca
 
-#endif //__CLRS4_MEMORY_MAPPED_FILE__
+#endif //__FC_MMFILE_H__
