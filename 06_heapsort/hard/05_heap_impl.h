@@ -4,7 +4,7 @@
 #include <cassert>
 #include <common.h>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -183,6 +183,6 @@ struct make_and_sort_heap_func {
 
 inline constexpr make_and_sort_heap_func make_heap_and_sort{};
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_HEAP_IMPL_HARD_H__

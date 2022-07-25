@@ -8,7 +8,7 @@
 #include <iostream>
 #include <random>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -120,6 +120,6 @@ struct quickselect_func {
 
 inline constexpr quickselect_func quickselect{};
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_QUICKSELECT_IMPL_HARD_H__

@@ -87,7 +87,7 @@ int main() {
   
   // Wee hash function
   {
-    using OurWee = fc::hard::Wee<123, 0, 64, 4>;
+    using OurWee = fc::Wee<123, 0, 64, 4>;
     unordered_set<size_t, OurWee> s;
 
     {

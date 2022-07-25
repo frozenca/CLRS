@@ -113,10 +113,10 @@ int main() {
   balanced_bst_set<set<int>>(true); // warm up for benchmarking
 
   cout << "Warming up complete...\n";
-  cout << "frozenca::hard::TreeSet<int> test\n";
-  balanced_bst_set<fc::hard::TreeSet<int>>();
-  cout << "frozenca::hard::AVLTreeSet<int> test\n";
-  balanced_bst_set<fc::hard::AVLTreeSet<int>>();
+  cout << "frozenca::TreeSet<int> test\n";
+  balanced_bst_set<fc::TreeSet<int>>();
+  cout << "frozenca::AVLTreeSet<int> test\n";
+  balanced_bst_set<fc::AVLTreeSet<int>>();
   cout << "std::set<int> test\n";
   balanced_bst_set<set<int>>();
 }

@@ -113,12 +113,12 @@ int main() {
   hash_table_test<unordered_set<int>>(true); // warm up for benchmarking
 
   cout << "Warming up complete...\n";
-  cout << "frozenca::hard::HashSet<int, std::hash<int>> test\n";
-  hash_table_test<fc::hard::HashSet<int, hash<int>>>();
-  cout << "frozenca::hard::HashSet<int, frozenca::hard::Hash<int>> test\n";
-  hash_table_test<fc::hard::HashSet<int>>();
+  cout << "frozenca::HashSet<int, std::hash<int>> test\n";
+  hash_table_test<fc::HashSet<int, hash<int>>>();
+  cout << "frozenca::HashSet<int, frozenca::Hash<int>> test\n";
+  hash_table_test<fc::HashSet<int>>();
   cout << "std::unordered_set<int, std::hash<int>> test\n";
   hash_table_test<unordered_set<int>>();
-  cout << "std::unordered_set<int, frozenca::hard::Hash<int>> test\n";
-  hash_table_test<unordered_set<int, fc::hard::Hash<int>>>();
+  cout << "std::unordered_set<int, frozenca::Hash<int>> test\n";
+  hash_table_test<unordered_set<int, fc::Hash<int>>>();
 }

@@ -3,7 +3,7 @@
 
 #include <common.h>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -94,6 +94,6 @@ struct merge_sort_func {
 
 inline constexpr merge_sort_func merge_sort{};
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_MERGE_SORT_HARD_H__

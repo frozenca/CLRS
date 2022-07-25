@@ -8,7 +8,7 @@
 #include <iostream>
 #include <vector>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -449,6 +449,6 @@ template <Containable K, Containable V, typename Hasher = Hash<K>>
 using HashMultiMapOA =
     detail::HashTableOpenAddress<K, pair<const K, V>, Hasher, true>;
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_HASH_TABLE_OPEN_ADDRESS_H__

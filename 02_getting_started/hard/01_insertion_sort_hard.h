@@ -3,7 +3,7 @@
 
 #include <common.h>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -68,6 +68,6 @@ inline constexpr insertion_sort_func insertion_sort{};
 
 inline constexpr insertion_sort_recursive_func insertion_sort_recursive{};
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_INSERTION_SORT_HARD_H__

@@ -9,7 +9,7 @@ int main() {
   namespace fc = frozenca;
   using namespace std;
 
-  fc::hard::TreeSet<int> tree;
+  fc::TreeSet<int> tree;
   tree.insert(1);
   tree.insert(2);
   tree.insert(3);

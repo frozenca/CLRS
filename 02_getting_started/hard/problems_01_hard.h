@@ -4,7 +4,7 @@
 #include <02_getting_started/hard/01_insertion_sort_hard.h>
 #include <common.h>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -99,6 +99,6 @@ struct insertion_and_merge_sort_func {
 
 inline constexpr insertion_and_merge_sort_func insertion_and_merge_sort{};
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_PROBLEMS_02_01_HARD_H__

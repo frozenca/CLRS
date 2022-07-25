@@ -82,8 +82,8 @@ template <typename ListType> void linked_list_test() {
 
 int main() {
   cout << "Linked list demo\n";
-  cout << "frozenca::hard::LinkedList<int> test\n";
-  linked_list_test<fc::hard::LinkedList<int>>();
+  cout << "frozenca::LinkedList<int> test\n";
+  linked_list_test<fc::LinkedList<int>>();
   cout << "std::list<int> test\n";
   linked_list_test<list<int>>();
 }

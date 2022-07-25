@@ -14,11 +14,11 @@ int main() {
   }
   {
     vector<int> v{2, 3, 1, 6, 5, 4};
-    fc::hard::merge_sort(v);
+    fc::merge_sort(v);
     fc::print(v);
     fc::verify_sorting(ranges::sort);
-    fc::verify_sorting(fc::hard::merge_sort);
+    fc::verify_sorting(fc::merge_sort);
     fc::perf_check_sorting(ranges::sort);
-    fc::perf_check_sorting(fc::hard::merge_sort);
+    fc::perf_check_sorting(fc::merge_sort);
   }
 }

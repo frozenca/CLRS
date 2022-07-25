@@ -7,7 +7,7 @@
 #include <random>
 #include <stdexcept>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -1152,6 +1152,6 @@ template <Containable K, Containable V, typename Comp = compare_three_way>
 using TreeMultiMap = detail::RedBlackTree<K, pair<const K, V>, Comp, true,
                                           detail::RBTreeNode<pair<const K, V>>>;
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_RED_BLACK_TREE_H__

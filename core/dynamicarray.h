@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -195,6 +195,6 @@ public:
   }
 };
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_DYNAMIC_ARRAY_H__

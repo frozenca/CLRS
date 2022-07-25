@@ -14,8 +14,8 @@ int main() {
   }
   {
     vector<int> v{2, 3, 1, 6, 5, 4};
-    fc::hard::insertion_sort(v, greater{});
+    fc::insertion_sort(v, greater{});
     fc::print(v);
-    fc::verify_sorting(fc::hard::insertion_sort);
+    fc::verify_sorting(fc::insertion_sort);
   }
 }

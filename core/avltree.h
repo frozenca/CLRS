@@ -8,7 +8,7 @@
 #include <rbtree.h>
 #include <stdexcept>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -816,6 +816,6 @@ using AVLTreeMap = detail::AVLTree<K, pair<const K, V>, Comp, false>;
 template <Containable K, Containable V, typename Comp = less<K>>
 using AVLTreeMultiMap = detail::AVLTree<K, pair<const K, V>, Comp, true>;
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_AVL_TREE_H__

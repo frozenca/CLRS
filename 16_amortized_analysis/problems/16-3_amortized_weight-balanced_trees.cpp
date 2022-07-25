@@ -126,7 +126,7 @@ int main() {
   cout << "frozenca::BinarySearchTree<int> test\n";
   rb_tree_test<fc::BinarySearchTree<int>, true>();
   cout << "frozenca::TreeSet<int> test\n";
-  rb_tree_test<fc::hard::TreeSet<int>>();
+  rb_tree_test<fc::TreeSet<int>>();
   cout << "std::set<int> test\n";
   rb_tree_test<set<int>>();
 }

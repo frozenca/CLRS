@@ -9,7 +9,7 @@
 #include <linkedlist.h>
 #include <vector>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -473,6 +473,6 @@ using HashMap = detail::HashTable<K, pair<const K, V>, Hasher, false>;
 template <Containable K, Containable V, typename Hasher = Hash<K>>
 using HashMultiMap = detail::HashTable<K, pair<const K, V>, Hasher, true>;
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_HASH_TABLE_H__

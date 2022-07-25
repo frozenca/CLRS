@@ -6,7 +6,7 @@
 #include <common.h>
 #include <span>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 namespace detail {
@@ -115,6 +115,6 @@ template <typename T, size_t a = detail::hash_a_base> struct Hash {
   }
 };
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_HASH_FUNCTION_H__

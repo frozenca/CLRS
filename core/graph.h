@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -314,6 +314,6 @@ using WeightedGraph = detail::GraphBase<false, true, W, EdgeTraitTag>;
 template <typename W = float, typename EdgeTraitTag = detail::AdjListTraitTag>
 using WeightedDiGraph = detail::GraphBase<true, true, W, EdgeTraitTag>;
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_GRAPH_H__

@@ -3,7 +3,7 @@
 
 #include <common.h>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -29,6 +29,6 @@ template <size_t a, size_t b, size_t t, size_t r> struct Wee {
   }
 };
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_WEE_HASH_FUNCTION_H__

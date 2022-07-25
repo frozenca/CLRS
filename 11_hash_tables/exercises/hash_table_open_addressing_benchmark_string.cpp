@@ -141,12 +141,12 @@ int main() {
   hash_table_string_test<unordered_set<string>>(true); // warm up for benchmarking
 
   cout << "Warming up complete...\n";
-  cout << "frozenca::hard::HashSet<std::string, std::hash<std::string>> test\n";
-  hash_table_string_test<fc::hard::HashSetOA<string, hash<string>>>();
-  cout << "frozenca::hard::HashSet<std::string, frozenca::hard::Hash<std::string>> test\n";
-  hash_table_string_test<fc::hard::HashSetOA<string>>();
+  cout << "frozenca::HashSet<std::string, std::hash<std::string>> test\n";
+  hash_table_string_test<fc::HashSetOA<string, hash<string>>>();
+  cout << "frozenca::HashSet<std::string, frozenca::Hash<std::string>> test\n";
+  hash_table_string_test<fc::HashSetOA<string>>();
   cout << "std::unordered_set<std::string, std::hash<std::string>> test\n";
   hash_table_string_test<unordered_set<string>>();
-  cout << "std::unordered_set<std::string, frozenca::hard::Hash<std::string>> test\n";
-  hash_table_string_test<unordered_set<string, fc::hard::Hash<string>>>();
+  cout << "std::unordered_set<std::string, frozenca::Hash<std::string>> test\n";
+  hash_table_string_test<unordered_set<string, fc::Hash<string>>>();
 }

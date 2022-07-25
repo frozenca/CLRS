@@ -7,7 +7,7 @@ int main() {
   namespace fc = frozenca;
   using namespace std;
 
-  fc::hard::WeightedDiGraph<> g;
+  fc::WeightedDiGraph<> g;
 
   g.add_edge(0, 1, 5.0);
   g.add_edge(0, 2, 3.0);

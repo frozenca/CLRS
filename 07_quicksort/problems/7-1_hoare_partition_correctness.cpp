@@ -18,7 +18,7 @@ int main() {
   }
   {
     vector<int> A{27, 17, 3, 16, 13, 10, 1, 5, 7, 12, 4, 8, 9, 0};
-    fc::hard::quicksort_hoare(A);
+    fc::quicksort_hoare(A);
     fc::print(A);
     if (ranges::is_sorted(A)) {
       cout << "Sorted\n";
@@ -26,9 +26,9 @@ int main() {
       cout << "Failed to sort\n";
     }
   }
-  fc::verify_sorting(fc::hard::quicksort);
-  fc::verify_sorting(fc::hard::quicksort_hoare);
+  fc::verify_sorting(fc::quicksort);
+  fc::verify_sorting(fc::quicksort_hoare);
   fc::perf_check_sorting(ranges::sort);
-  fc::perf_check_sorting(fc::hard::quicksort);
-  fc::perf_check_sorting(fc::hard::quicksort_hoare);
+  fc::perf_check_sorting(fc::quicksort);
+  fc::perf_check_sorting(fc::quicksort_hoare);
 }

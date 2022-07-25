@@ -6,7 +6,7 @@
 #include <iostream>
 #include <random>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -328,6 +328,6 @@ struct quicksort_tre_func {
 
 inline constexpr quicksort_tre_func quicksort_tre{};
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_QUICKSORT_IMPL_HARD_H__

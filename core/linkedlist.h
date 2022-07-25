@@ -3,7 +3,7 @@
 
 #include <common.h>
 
-namespace frozenca::hard {
+namespace frozenca {
 
 using namespace std;
 
@@ -346,6 +346,6 @@ public:
   void pop_front() { erase_at(head_->next_); }
 };
 
-} // namespace frozenca::hard
+} // namespace frozenca
 
 #endif //__CLRS4_LINKED_LIST_H__

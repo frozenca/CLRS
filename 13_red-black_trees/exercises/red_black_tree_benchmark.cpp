@@ -112,8 +112,8 @@ int main() {
   rb_tree_test<set<int>>(true); // warm up for benchmarking
 
   cout << "Warming up complete...\n";
-  cout << "frozenca::hard::TreeSet<int> test\n";
-  rb_tree_test<fc::hard::TreeSet<int>>();
+  cout << "frozenca::TreeSet<int> test\n";
+  rb_tree_test<fc::TreeSet<int>>();
   cout << "std::set<int> test\n";
   rb_tree_test<set<int>>();
 }

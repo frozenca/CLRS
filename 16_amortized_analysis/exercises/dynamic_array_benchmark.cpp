@@ -66,8 +66,8 @@ int main() {
   dynamic_array_test<vector<int>>(true); // warm up for benchmarking
 
   cout << "Warming up complete...\n";
-  cout << "frozenca::hard::DynamicArray<int> test\n";
-  dynamic_array_test<fc::hard::DynamicArray<int>>();
+  cout << "frozenca::DynamicArray<int> test\n";
+  dynamic_array_test<fc::DynamicArray<int>>();
   cout << "std::vector<int> test\n";
   dynamic_array_test<vector<int>>();
 }

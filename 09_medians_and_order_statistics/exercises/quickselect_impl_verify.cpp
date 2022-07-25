@@ -26,7 +26,7 @@ int main() {
     uniform_int_distribution<> k_dist(0, n - 1);
     int k = k_dist(gen);
     auto k_iter = v.begin() + k;
-    fc::hard::quickselect(v, k_iter);
+    fc::quickselect(v, k_iter);
     auto kth = *k_iter;
     if (kth != k) {
       cout << "Select algorithm failed!\n";
@@ -65,7 +65,7 @@ int main() {
   }
 
   {
-    // fc::hard::quickselect
+    // fc::quickselect
     vector<float> durations;
     for (int i = 0; i < num_trials; ++i) {
       vector<int> v;
@@ -73,7 +73,7 @@ int main() {
         v.push_back(dist(gen));
       }
       auto start = chrono::steady_clock::now();
-      fc::hard::quickselect(v, v.begin() + max_n / 2);
+      fc::quickselect(v, v.begin() + max_n / 2);
       auto end = chrono::steady_clock::now();
       durations.push_back(
           chrono::duration_cast<chrono::duration<float, micro>>(end - start)
