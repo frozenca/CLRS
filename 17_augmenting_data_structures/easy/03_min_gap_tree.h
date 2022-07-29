@@ -43,8 +43,8 @@ struct ValidateGapAttr {
 };
 
 template <Containable T>
-struct GapNode : public hard::detail::RBTreeNodeBase<T, GapNode<T>> {
-  using Base = hard::detail::RBTreeNodeBase<T, GapNode<T>>;
+struct GapNode : public detail::RBTreeNodeBase<T, GapNode<T>> {
+  using Base = detail::RBTreeNodeBase<T, GapNode<T>>;
   using AttrType = GapAttr<T>;
   using attr_type = AttrType;
   AttrType attr_ = {};

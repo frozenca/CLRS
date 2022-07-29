@@ -35,6 +35,9 @@ template <typename T>
 concept Scalar = is_scalar_v<T>;
 
 template <typename T>
+concept Arithmetic = is_arithmetic_v<T>;
+
+template <typename T>
 concept SpanType = !Scalar<T> && requires(T t) {
   t.data();
   t.size();

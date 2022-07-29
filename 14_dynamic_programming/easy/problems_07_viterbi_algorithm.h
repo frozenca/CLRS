@@ -19,7 +19,7 @@ struct Sound {
   Sound(string sound, float prob) : sound_{move(sound)}, prob_{prob} {}
 };
 
-using SoundGraph = hard::WeightedDiGraph<Sound>;
+using SoundGraph = WeightedDiGraph<Sound>;
 using SequenceIter = vector<string_view>::const_iterator;
 
 bool viterbi_get_path(const SoundGraph &g, SequenceIter s_first,

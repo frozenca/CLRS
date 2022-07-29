@@ -35,7 +35,7 @@ public:
   using const_iterator_type = Base::const_iterator_type;
   using reverse_iterator_type = Base::reverse_iterator_type;
   using const_reverse_iterator_type = Base::const_reverse_iterator_type;
-  using SearchResult = hard::detail::BSTSearchResult<Node>;
+  using SearchResult = detail::BSTSearchResult<Node>;
 
 protected:
   Node *find_node_exact(const Interval &key) const {

@@ -10,8 +10,8 @@ namespace frozenca {
 using namespace std;
 
 template <Containable T>
-struct RBRankNode : public hard::detail::RBTreeNodeBase<T, RBRankNode<T>> {
-  using Base = hard::detail::RBTreeNodeBase<T, RBRankNode<T>>;
+struct RBRankNode : public detail::RBTreeNodeBase<T, RBRankNode<T>> {
+  using Base = detail::RBTreeNodeBase<T, RBRankNode<T>>;
   ptrdiff_t rank_ = 0;
 
   Base &base() { return static_cast<Base &>(*this); }
@@ -29,10 +29,10 @@ struct RBRankNode : public hard::detail::RBTreeNodeBase<T, RBRankNode<T>> {
 
 template <Containable K>
 class RankTree
-    : public hard::detail::RedBlackTreeBase<K, K, compare_three_way, false, RBRankNode<K>,
+    : public detail::RedBlackTreeBase<K, K, compare_three_way, false, RBRankNode<K>,
                                             RankTree<K>> {
 public:
-  using Base = hard::detail::RedBlackTreeBase<K, K, compare_three_way, false,
+  using Base = detail::RedBlackTreeBase<K, K, compare_three_way, false,
                                               RBRankNode<K>, RankTree<K>>;
   friend class Base;
   using Comp = compare_three_way;
@@ -150,32 +150,32 @@ private:
     }
   }
 
-  void erase_fixup_z(Node *z, hard::detail::BSTChild &child) {
+  void erase_fixup_z(Node *z, detail::BSTChild &child) {
     auto zp = z->parent_;
     if (!zp) {
-      child = hard::detail::BSTChild::Unused;
+      child = detail::BSTChild::Unused;
     } else if (z == zp->left_.get()) {
-      child = hard::detail::BSTChild::Left;
+      child = detail::BSTChild::Left;
     } else {
-      child = hard::detail::BSTChild::Right;
+      child = detail::BSTChild::Right;
     }
   }
 
   void erase_fixup_zy(Node *z, Node *y) { y->rank_ = z->rank_; }
 
-  void erase_fixup_x(Node *x, Node *xp, hard::detail::BSTChild &child) {
+  void erase_fixup_x(Node *x, Node *xp, detail::BSTChild &child) {
     auto curr = x;
     auto cp = xp;
     while (cp) {
-      if (cp && child == hard::detail::BSTChild::Left) {
+      if (cp && child == detail::BSTChild::Left) {
         cp->rank_--;
       }
       curr = cp;
       cp = cp->parent_;
       if (cp && curr == cp->left_.get()) {
-        child = hard::detail::BSTChild::Left;
+        child = detail::BSTChild::Left;
       } else {
-        child = hard::detail::BSTChild::Right;
+        child = detail::BSTChild::Right;
       }
     }
   }

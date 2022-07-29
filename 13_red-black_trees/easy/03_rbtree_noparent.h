@@ -10,9 +10,9 @@ namespace frozenca {
 
 using namespace std;
 
-template <Containable K> class RBTreeNoParent : public hard::TreeSet<K> {
+template <Containable K> class RBTreeNoParent : public TreeSet<K> {
 public:
-  using Node = hard::TreeSet<K>::node_type;
+  using Node = TreeSet<K>::node_type;
 
   void insert_noparent(const K &key) {
     vector<Node *> nodes;

@@ -1,318 +1,190 @@
 #ifndef __CLRS4_GRAPH_H__
 #define __CLRS4_GRAPH_H__
 
-#include <algorithm>
-#include <cassert>
 #include <common.h>
+#include <concepts>
 #include <list>
+#include <map>
 #include <ranges>
-#include <stdexcept>
-#include <vector>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace frozenca {
 
 using namespace std;
 
-namespace detail {
+template <typename T>
+concept Descriptor = is_default_constructible_v<T> && is_assignable_v<T &, T> &&
+    equality_comparable<T>;
 
-template <typename Weight> struct AdjListDescTrait {
-  using desc_type = pair<index_t, Weight>;
-  using edges_type = vector<list<desc_type>>;
+template <typename Derived> struct EdgePropertyTag {};
 
-  template <typename WeightType>
-  static void add_edge(edges_type &edges, index_t src, index_t dst,
-                       WeightType &&w) {
-    edges[src].emplace_back(dst, forward<WeightType>(w));
-  }
+struct EdgeWeightTag : public EdgePropertyTag<EdgeWeightTag> {};
 
-  static index_t proj(const desc_type &desc) noexcept { return desc.first; }
-};
+EdgeWeightTag e_w;
 
-template <> struct AdjListDescTrait<void> {
-  using desc_type = index_t;
-  using edges_type = vector<list<desc_type>>;
+template <typename Derived> struct VertexPropertyTag {};
 
-  static void add_edge(edges_type &edges, index_t src, index_t dst) {
-    edges[src].emplace_back(dst);
-  }
+struct VertexDistanceTag : public VertexPropertyTag<VertexDistanceTag> {};
 
-  static index_t proj(const desc_type &desc) noexcept { return desc; }
-};
+VertexDistanceTag v_dist;
 
-template <typename Weight> struct AdjListTrait {
-  using desc_trait = AdjListDescTrait<Weight>;
-  using desc_type = desc_trait::desc_type;
-  using edges_type = desc_trait::edges_type;
-  using edge_iter_type = list<desc_type>::iterator;
-  using edge_const_iter_type = list<desc_type>::const_iterator;
-  using edge_range_type = ranges::subrange<edge_iter_type>;
-  using const_edge_range_type = ranges::subrange<edge_const_iter_type>;
-
-  static void resize(edges_type &edges, index_t new_size) {
-    auto old_size = curr_size(edges);
-    if (new_size < old_size) {
-      for (index_t i = 0; i < new_size; ++i) {
-        erase_if(edges[i], [&new_size](const auto &edge_desc) {
-          return desc_trait::proj(edge_desc) >= new_size;
-        });
-      }
-    }
-    edges.resize(new_size);
-  }
-
-  static index_t curr_size(const edges_type &edges) { return ssize(edges); }
-
-  static edge_range_type get_edges(edges_type &edges, index_t index) {
-    return edges[index];
-  }
-
-  static const_edge_range_type get_edges(const edges_type &edges,
-                                         index_t index) {
-    return edges[index];
-  }
-
-  static edge_iter_type get_edge(edges_type &edges, index_t src, index_t dst) {
-    auto it = edges[src].begin();
-    for (; it != edges[src].end(); ++it) {
-      if (desc_trait::proj(*it) == dst) {
-        break;
-      }
-    }
-    return it;
-  }
-
-  static edge_const_iter_type get_edge(const edges_type &edges, index_t src,
-                                       index_t dst) {
-    auto it = edges[src].begin();
-    for (; it != edges[src].end(); ++it) {
-      if (desc_trait::proj(*it) == dst) {
-        break;
-      }
-    }
-    return it;
-  }
-
-  static bool has_edge(const edges_type &edges, index_t src,
-                                       index_t dst) {
-    auto it = edges[src].begin();
-    for (; it != edges[src].end(); ++it) {
-      if (desc_trait::proj(*it) == dst) {
-        return true;
-      }
-    }
-    return false;
+template <typename Derived> struct EmptyProperty {
+  void operator()() const noexcept {
+    // do nothing
   }
 };
 
-template <typename Weight> struct AdjMatDescTrait {
-  using desc_type = Weight;
-  using edges_type = vector<desc_type>;
+template <Descriptor VertexType, typename Traits, typename Properties>
+class Graph : public Traits::template Impl<VertexType>,
+              public Properties::template Impl<VertexType> {
+public:
+  using TraitBase = Traits::template Impl<VertexType>;
 
-  template <typename WeightType>
-  static void add_edge(edges_type &edges, index_t src, index_t dst,
-                       WeightType &&w) {
-    const auto curr_size = static_cast<index_t>(sqrt(ssize(edges)));
-    edges[src * curr_size + dst] = forward<WeightType>(w);
-  }
+  using TraitBase::add_edge;
+  using TraitBase::add_vertex;
+  using TraitBase::adj;
+  using TraitBase::has_edge;
+  using TraitBase::has_vertex;
+  using TraitBase::vertices;
 };
 
-template <> struct AdjMatDescTrait<void> {
-  using desc_type = int;
-  using edges_type = vector<desc_type>;
+template <Descriptor Vertex, typename Derived> struct AdjListTraits {
+  using vertex_type = Vertex;
+  using vertices_type = unordered_set<vertex_type>;
+  using vertex_iterator_type = vertices_type::iterator;
 
-  static void add_edge(edges_type &edges, index_t src, index_t dst) {
-    const auto curr_size = static_cast<index_t>(sqrt(ssize(edges)));
-    edges[src * curr_size + dst] = 1;
-  }
-};
+  using edge_type = pair<vertex_type, vertex_type>;
+  using adj_list_type = list<edge_type>;
+  using edges_type = list<adj_list_type>;
+  using edge_iterator_type = adj_list_type::iterator;
+  using const_edge_iterator_type = adj_list_type::const_iterator;
+  using out_edges_type =
+      unordered_map<vertex_type, typename edges_type::iterator>;
 
-template <typename Weight> struct AdjMatTrait {
-  using desc_trait = AdjMatDescTrait<Weight>;
-  using desc_type = desc_trait::desc_type;
-  using edges_type = desc_trait::edges_type;
-  using edge_iter_type = vector<desc_type>::iterator;
-  using edge_const_iter_type = vector<desc_type>::const_iterator;
-  using edge_range_type = ranges::subrange<edge_iter_type>;
-  using const_edge_range_type = ranges::subrange<edge_const_iter_type>;
+  vertices_type vertices_;
+  edges_type edges_;
+  out_edges_type out_edges_;
 
-  static void resize(const edges_type &edges, index_t new_size) {
-    auto old_size = curr_size(edges);
-    if (new_size < old_size) {
-      for (index_t i = 0; i < new_size; ++i) {
-        for (index_t j = 0; j < new_size; ++j) {
-          edges[i * new_size + j] = edges[i * old_size + j];
-        }
-      }
-    }
-    edges.resize(new_size * new_size);
-    if (new_size > old_size) {
-      for (index_t i = old_size - 1; i >= 0; --i) {
-        for (index_t j = old_size - 1; j >= 0; --j) {
-          edges[i * new_size + j] = edges[i * old_size + j];
-          edges[i * old_size + j] = 0;
-        }
-      }
+  const auto &vertices() const noexcept { return vertices_; }
+
+  void add_vertex(const vertex_type &vertex) {
+    vertices_.insert(vertex);
+    if (!out_edges_.contains(vertex)) {
+      edges_.emplace_front();
+      out_edges_.emplace(vertex, edges_.begin());
     }
   }
 
-  static index_t curr_size(const edges_type &edges) {
-    return static_cast<index_t>(sqrt(ssize(edges)));
+  bool has_vertex(const vertex_type &vertex) const {
+    return vertices_.contains(vertex);
   }
 
-  static edge_range_type get_edges(edges_type &edges, index_t index) {
-    auto sz = curr_size(edges);
-    return {edges.begin() + index * sz, edges.begin() + (index + 1) * sz};
+  ranges::subrange<edge_iterator_type, edge_iterator_type>
+  adj(const vertex_type &vertex) {
+    return *out_edges_.at(vertex);
   }
 
-  static const_edge_range_type get_edges(const edges_type &edges,
-                                         index_t index) {
-    auto sz = curr_size(edges);
-    return {edges.begin() + index * sz, edges.begin() + (index + 1) * sz};
+  ranges::subrange<const_edge_iterator_type, const_edge_iterator_type>
+  adj(const vertex_type &vertex) const {
+    return *out_edges_.at(vertex);
   }
 
-  static edge_iter_type get_edge(edges_type &edges, index_t src, index_t dst) {
-    auto sz = curr_size(edges);
-    return edges.begin() + src * sz + dst;
+  bool has_edge(const edge_type &edge) const {
+    auto edge_range = adj(edge.first);
+    return ranges::find(edge_range, edge) != edge_range.end();
   }
 
-  static edge_const_iter_type get_edge(const edges_type &edges, index_t src,
-                                       index_t dst) {
-    auto sz = curr_size(edges);
-    return edges.begin() + src * sz + dst;
-  }
-
-  static bool has_edge(const edges_type &edges, index_t src,
-                                       index_t dst) {
-    auto sz = curr_size(edges);
-    return edges.begin() + src * sz + dst;
+  void add_edge(const vertex_type &src, const vertex_type &dst) {
+    out_edges_[src]->emplace_front(src, dst);
   }
 };
 
 struct AdjListTraitTag {
-  template <bool Weighted, typename WeightType>
-  using edge_trait_type =
-      AdjListTrait<conditional_t<Weighted, WeightType, void>>;
+  template <Descriptor VertexType, typename Derived>
+  using Trait = AdjListTraits<VertexType, Derived>;
 };
 
-struct AdjMatTraitTag {
-  template <bool Weighted, typename WeightType>
-  using edge_trait_type =
-      AdjMatTrait<conditional_t<Weighted, WeightType, void>>;
-};
+template <Descriptor VertexType, bool Directed, typename ContainerTraitTag>
+struct GraphTraitsImpl
+    : public ContainerTraitTag::template Trait<
+          VertexType,
+          GraphTraitsImpl<VertexType, Directed, ContainerTraitTag>> {
+  using vertex_type = VertexType;
+  using Base = ContainerTraitTag::template Trait<
+      VertexType, GraphTraitsImpl<VertexType, Directed, ContainerTraitTag>>;
+  static constexpr bool directed_ = Directed;
 
-template <bool Directed, bool Weighted, typename WeightType,
-          typename EdgeTraitTag>
-class GraphBase {
-public:
-  using edge_trait =
-      EdgeTraitTag::template edge_trait_type<Weighted, WeightType>;
-  using edges_type = edge_trait::edges_type;
-  using edge_iter_type = edge_trait::edge_iter_type;
-  using edge_const_iter_type = edge_trait::edge_const_iter_type;
+  using Base::add_vertex;
+  using Base::adj;
+  using Base::has_edge;
+  using Base::has_vertex;
+  using Base::vertices;
 
-private:
-  edges_type edges_;
-
-  [[nodiscard]] bool vertex_large(index_t index) const noexcept {
-    return index >= size();
-  }
-
-  [[nodiscard]] bool vertex_small(index_t index) const noexcept {
-    return index < 0;
-  }
-
-  [[nodiscard]] bool vertex_invalid(index_t index) const noexcept {
-    return vertex_small(index) || vertex_large(index);
-  }
-
-public:
-  void index_check(index_t src, index_t dst) {
-    auto max_index = max(src, dst);
-    if (src < 0 || dst < 0) {
-      throw invalid_argument("vertex index is negative");
-    } else if (vertex_large(max_index)) {
-      edge_trait::resize(edges_, max_index + 1);
+  void add_edge(const vertex_type &src, const vertex_type &dst) {
+    add_vertex(src);
+    add_vertex(dst);
+    Base::add_edge(src, dst);
+    if constexpr (!directed_) {
+      Base::add_edge(dst, src);
     }
-  }
-
-  template <typename... Args>
-  void add_edge(index_t src, index_t dst, Args &&...args) requires(Weighted) {
-    index_check(src, dst);
-    if (has_edge(src, dst)) {
-      return;
-    }
-    WeightType w {forward<Args>(args)...};
-
-    if constexpr (!Directed) {
-      edge_trait::desc_trait::add_edge(edges_, dst, src, w);
-    }
-    edge_trait::desc_trait::add_edge(edges_, src, dst, move(w));
-  }
-
-  void add_edge(index_t src, index_t dst) requires(!Weighted) {
-    index_check(src, dst);
-    if (has_edge(src, dst)) {
-      return;
-    }
-    if constexpr (!Directed) {
-      edge_trait::desc_trait::add_edge(edges_, dst, src);
-    }
-    edge_trait::desc_trait::add_edge(edges_, src, dst);
-  }
-
-  auto edges(index_t src) {
-    if (vertex_invalid(src)) {
-      throw invalid_argument("vertex does not exist");
-    }
-    return edge_trait::get_edges(edges_, src);
-  }
-
-  auto edges(index_t src) const {
-    if (vertex_invalid(src)) {
-      throw invalid_argument("vertex does not exist");
-    }
-    return edge_trait::get_edges(edges_, src);
-  }
-
-  auto edge(index_t src, index_t dst) {
-    if (vertex_invalid(src) || vertex_invalid(dst)) {
-      throw invalid_argument("vertex does not exist");
-    }
-    return edge_trait::get_edge(edges_, src, dst);
-  }
-
-  auto edge(index_t src, index_t dst) const {
-    if (vertex_invalid(src) || vertex_invalid(dst)) {
-      throw invalid_argument("vertex does not exist");
-    }
-    return edge_trait::get_edge(edges_, src, dst);
-  }
-
-  [[nodiscard]] bool has_edge(index_t src, index_t dst) const {
-    if (vertex_invalid(src) || vertex_invalid(dst)) {
-      throw invalid_argument("vertex does not exist");
-    }
-    return edge_trait::has_edge(edges_, src, dst);
-  }
-
-  [[nodiscard]] index_t size() const noexcept {
-    return edge_trait::curr_size(edges_);
   }
 };
 
-} // namespace detail
+template <bool Directed, typename ContainerTraitTag> struct GraphTraits {
+  template <Descriptor VertexType>
+  using Impl = GraphTraitsImpl<VertexType, Directed, ContainerTraitTag>;
+};
 
-template <typename EdgeTraitTag = detail::AdjListTraitTag>
-using Graph = detail::GraphBase<false, false, void, EdgeTraitTag>;
+template <typename ContainerTraitTag>
+using DiGraphTraits = GraphTraits<true, ContainerTraitTag>;
 
-template <typename EdgeTraitTag = detail::AdjListTraitTag>
-using DiGraph = detail::GraphBase<true, false, void, EdgeTraitTag>;
+template <Descriptor VertexType, typename... BaseProperties>
+struct GraphProperties : public BaseProperties::template Impl<VertexType>... {
+  using BaseProperties::template Impl<VertexType>::operator()...;
+};
 
-template <typename W = float, typename EdgeTraitTag = detail::AdjListTraitTag>
-using WeightedGraph = detail::GraphBase<false, true, W, EdgeTraitTag>;
+template <Arithmetic WeightType, typename EdgeType> struct EdgeWeightImpl {
+  WeightType &operator()(EdgeWeightTag, const EdgeType &edge) {
+    return weights_[edge];
+  }
+  const WeightType &operator()(EdgeWeightTag, const EdgeType &edge) const {
+    return weights_.at(edge);
+  }
 
-template <typename W = float, typename EdgeTraitTag = detail::AdjListTraitTag>
-using WeightedDiGraph = detail::GraphBase<true, true, W, EdgeTraitTag>;
+  map<EdgeType, WeightType> weights_;
+};
+
+template <Arithmetic WeightType> struct EdgeWeightProperty {
+  template <Descriptor VertexType>
+  using Impl = EdgeWeightImpl<WeightType, pair<VertexType, VertexType>>;
+};
+
+template <Arithmetic DistanceType, Descriptor VertexType>
+struct VertexDistanceImpl {
+
+  DistanceType &operator()(VertexDistanceTag, const VertexType &vertex) {
+    return distances_[vertex];
+  }
+  const DistanceType &operator()(VertexDistanceTag,
+                                 const VertexType &vertex) const {
+    return distances_.at(vertex);
+  }
+
+  unordered_map<VertexType, DistanceType> distances_;
+};
+
+template <Arithmetic DistanceType> struct VertexDistanceProperty {
+  template <Descriptor VertexType>
+  using Impl = VertexDistanceImpl<DistanceType, VertexType>;
+};
+
+template <Arithmetic DistType> struct DijkstraProperties {
+  template <Descriptor VertexType>
+  using Impl = GraphProperties<VertexType, VertexDistanceProperty<DistType>,
+                               EdgeWeightProperty<DistType>>;
+};
 
 } // namespace frozenca
 

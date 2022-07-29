@@ -12,8 +12,8 @@ namespace frozenca {
 using namespace std;
 
 template <Containable T>
-struct RBTrackNode : public hard::detail::RBTreeNodeBase<T, RBTrackNode<T>> {
-  using Base = hard::detail::RBTreeNodeBase<T, RBTrackNode<T>>;
+struct RBTrackNode : public detail::RBTreeNodeBase<T, RBTrackNode<T>> {
+  using Base = detail::RBTreeNodeBase<T, RBTrackNode<T>>;
 
   RBTrackNode *succ_ = nullptr;
   RBTrackNode *pred_ = nullptr;
@@ -25,10 +25,10 @@ struct RBTrackNode : public hard::detail::RBTreeNodeBase<T, RBTrackNode<T>> {
 
 template <Containable K>
 class TrackTree
-    : public hard::detail::RedBlackTreeBase<K, K, compare_three_way, false,
+    : public detail::RedBlackTreeBase<K, K, compare_three_way, false,
                                             RBTrackNode<K>, TrackTree<K>> {
 public:
-  using Base = hard::detail::RedBlackTreeBase<K, K, compare_three_way, false,
+  using Base = detail::RedBlackTreeBase<K, K, compare_three_way, false,
                                               RBTrackNode<K>, TrackTree<K>>;
   friend class Base;
   using Comp = compare_three_way;
@@ -71,7 +71,7 @@ protected:
     }
   }
 
-  void erase_fixup_z(Node *z, const hard::detail::BSTChild&) {
+  void erase_fixup_z(Node *z, const detail::BSTChild&) {
     assert(z);
     if (z->pred_) {
       z->pred_->succ_ = z->succ_;

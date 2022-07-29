@@ -14,9 +14,9 @@ namespace frozenca {
 
 using namespace std;
 
-template <Containable K> class RBTreeConvert : public hard::TreeSet<K> {
+template <Containable K> class RBTreeConvert : public TreeSet<K> {
 public:
-  using Node = hard::TreeSet<K>::node_type;
+  using Node = TreeSet<K>::node_type;
   [[nodiscard]] bool is_right_spine() const {
     ptrdiff_t spine_length = 0;
     auto curr = this->get_root();

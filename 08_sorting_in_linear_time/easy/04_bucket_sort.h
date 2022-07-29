@@ -18,7 +18,7 @@ void bucket_sort(vector<float> &A) {
     B[static_cast<int>(floor(n * num))].push_back(num);
   }
   for (auto& b : B) {
-    hard::insertion_sort(b);
+    insertion_sort(b);
   }
   A.clear();
   for (auto& b : B) {
@@ -48,7 +48,7 @@ void bucket_sort_two_rv(vector<float> &A) {
     B[static_cast<int>(floor(n * num))].push_back(num);
   }
   for (auto& b : B) {
-    hard::insertion_sort(b);
+    insertion_sort(b);
   }
   A.clear();
   for (auto& b : B) {
@@ -64,7 +64,7 @@ void bucket_sort_2d_points(vector<pair<float, float>> &A) {
     B[static_cast<int>(floor(n * r * r))].emplace_back(x, y);
   }
   for (auto& b : B) {
-    hard::insertion_sort(b, [](const auto& a, const auto& b) {
+    insertion_sort(b, [](const auto& a, const auto& b) {
         return hypot(a.first, a.second) > hypot(b.first, b.second);
     });
   }

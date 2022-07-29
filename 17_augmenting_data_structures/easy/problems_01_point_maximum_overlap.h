@@ -63,8 +63,8 @@ struct ValidateEndpointAttr {
 
 template <Containable T>
 struct EndpointAttrNode
-    : public hard::detail::RBTreeNodeBase<Endpoint<T>, EndpointAttrNode<T>> {
-  using Base = hard::detail::RBTreeNodeBase<Endpoint<T>, EndpointAttrNode<T>>;
+    : public detail::RBTreeNodeBase<Endpoint<T>, EndpointAttrNode<T>> {
+  using Base = detail::RBTreeNodeBase<Endpoint<T>, EndpointAttrNode<T>>;
   using AttrType = EndpointAttr;
   using attr_type = AttrType;
   AttrType attr_ = {};

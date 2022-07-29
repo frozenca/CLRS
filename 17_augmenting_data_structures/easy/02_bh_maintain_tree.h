@@ -12,8 +12,8 @@ namespace frozenca {
 using namespace std;
 
 template <Containable T>
-struct RBBHNode : public hard::detail::RBTreeNodeBase<T, RBBHNode<T>> {
-  using Base = hard::detail::RBTreeNodeBase<T, RBBHNode<T>>;
+struct RBBHNode : public detail::RBTreeNodeBase<T, RBBHNode<T>> {
+  using Base = detail::RBTreeNodeBase<T, RBBHNode<T>>;
 
   ptrdiff_t bh_ = 0;
 
@@ -23,10 +23,10 @@ struct RBBHNode : public hard::detail::RBTreeNodeBase<T, RBBHNode<T>> {
 };
 
 template <Containable K>
-class BHTree : public hard::detail::RedBlackTreeBase<K, K, compare_three_way, false,
+class BHTree : public detail::RedBlackTreeBase<K, K, compare_three_way, false,
                                                      RBBHNode<K>, BHTree<K>> {
 public:
-  using Base = hard::detail::RedBlackTreeBase<K, K, compare_three_way, false, RBBHNode<K>,
+  using Base = detail::RedBlackTreeBase<K, K, compare_three_way, false, RBBHNode<K>,
                                               BHTree<K>>;
   friend class Base;
   using Comp = compare_three_way;

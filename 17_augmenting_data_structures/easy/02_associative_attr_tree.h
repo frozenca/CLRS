@@ -30,10 +30,10 @@ template <Containable T> struct SetOne {
 template <Containable T, typename AttrType, typename F, typename SetDefault>
 requires(BinaryOp<F, AttrType> &&is_convertible_v<
          invoke_result_t<SetDefault, T>, AttrType>) struct AttrNode
-    : public hard::detail::RBTreeNodeBase<
+    : public detail::RBTreeNodeBase<
           T, AttrNode<T, AttrType, F, SetDefault>> {
   using Base =
-      hard::detail::RBTreeNodeBase<T, AttrNode<T, AttrType, F, SetDefault>>;
+      detail::RBTreeNodeBase<T, AttrNode<T, AttrType, F, SetDefault>>;
   using attr_type = AttrType;
   AttrType attr_ = {};
 
@@ -62,11 +62,11 @@ requires(BinaryOp<F, AttrType> &&is_convertible_v<
 };
 
 template <Containable K, typename Comp, typename AttrNodeType, typename Derived>
-class AttrTreeBase : public hard::detail::RedBlackTreeBase<
+class AttrTreeBase : public detail::RedBlackTreeBase<
                          K, K, Comp, false, AttrNodeType,
                          AttrTreeBase<K, Comp, AttrNodeType, Derived>> {
 public:
-  using Base = hard::detail::RedBlackTreeBase<
+  using Base = detail::RedBlackTreeBase<
       K, K, Comp, false, AttrNodeType,
       AttrTreeBase<K, Comp, AttrNodeType, Derived>>;
   friend class Base;
@@ -159,7 +159,7 @@ protected:
     }
   }
 
-  void erase_fixup_x(Node *, Node *zp, const hard::detail::BSTChild &) {
+  void erase_fixup_x(Node *, Node *zp, const detail::BSTChild &) {
     auto curr = zp;
     while (curr) {
       curr->attr_ = curr->correct_attr();

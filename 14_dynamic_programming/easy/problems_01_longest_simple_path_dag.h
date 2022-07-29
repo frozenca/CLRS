@@ -11,7 +11,7 @@ namespace frozenca {
 
 using namespace std;
 
-void topological_sort_helper(const hard::WeightedDiGraph<> &g,
+void topological_sort_helper(const WeightedDiGraph<> &g,
                              vector<int> &visited, vector<index_t> &top_sort,
                              index_t i) {
   visited[i] = true;
@@ -24,7 +24,7 @@ void topological_sort_helper(const hard::WeightedDiGraph<> &g,
   top_sort.push_back(i);
 }
 
-float longest_simple_path_dag(const hard::WeightedDiGraph<> &g, index_t src,
+float longest_simple_path_dag(const WeightedDiGraph<> &g, index_t src,
                               index_t dst) {
   vector<index_t> top_sort;
   auto V = g.size();

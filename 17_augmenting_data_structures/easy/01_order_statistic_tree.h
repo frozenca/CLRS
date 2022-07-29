@@ -14,8 +14,8 @@ namespace frozenca {
 using namespace std;
 
 template <Containable T>
-struct RBOrderNode : public hard::detail::RBTreeNodeBase<T, RBOrderNode<T>> {
-  using Base = hard::detail::RBTreeNodeBase<T, RBOrderNode<T>>;
+struct RBOrderNode : public detail::RBTreeNodeBase<T, RBOrderNode<T>> {
+  using Base = detail::RBTreeNodeBase<T, RBOrderNode<T>>;
   ptrdiff_t size_ = 1;
 
   Base &base() { return static_cast<Base &>(*this); }
@@ -37,11 +37,11 @@ struct RBOrderNode : public hard::detail::RBTreeNodeBase<T, RBOrderNode<T>> {
 
 template <Containable K>
 class OrderStatisticTree
-    : public hard::detail::RedBlackTreeBase<
+    : public detail::RedBlackTreeBase<
           K, K, compare_three_way, false, RBOrderNode<K>, OrderStatisticTree<K>> {
 public:
   using Base =
-      hard::detail::RedBlackTreeBase<K, K, compare_three_way, false, RBOrderNode<K>,
+      detail::RedBlackTreeBase<K, K, compare_three_way, false, RBOrderNode<K>,
                                      OrderStatisticTree<K>>;
   friend class Base;
   using Comp = compare_three_way;
@@ -162,7 +162,7 @@ private:
     }
   }
 
-  void erase_fixup_x(Node *, Node *zp, const hard::detail::BSTChild &) {
+  void erase_fixup_x(Node *, Node *zp, const detail::BSTChild &) {
     auto curr = zp;
     while (curr) {
       curr->size_--;
