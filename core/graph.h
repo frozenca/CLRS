@@ -18,13 +18,23 @@ template <typename T>
 concept Descriptor = is_default_constructible_v<T> && is_assignable_v<T &, T> &&
     equality_comparable<T>;
 
-template <typename Derived> struct EdgePropertyTag {};
+template <typename Derived> struct EdgePropertyTag {
+  Derived &derived() noexcept { return static_cast<Derived &>(*this); }
+  const Derived &derived() const noexcept {
+    return static_cast<const Derived &>(*this);
+  }
+};
 
 struct EdgeWeightTag : public EdgePropertyTag<EdgeWeightTag> {};
 
 EdgeWeightTag e_w;
 
-template <typename Derived> struct VertexPropertyTag {};
+template <typename Derived> struct VertexPropertyTag {
+  Derived &derived() noexcept { return static_cast<Derived &>(*this); }
+  const Derived &derived() const noexcept {
+    return static_cast<const Derived &>(*this);
+  }
+};
 
 struct VertexDistanceTag : public VertexPropertyTag<VertexDistanceTag> {};
 
@@ -37,17 +47,76 @@ template <typename Derived> struct EmptyProperty {
 };
 
 template <Descriptor VertexType, typename Traits, typename Properties>
-class Graph : public Traits::template Impl<VertexType>,
-              public Properties::template Impl<VertexType> {
+class Graph : private Traits::template Impl<VertexType>,
+              private Properties::template Impl<VertexType> {
 public:
   using TraitBase = Traits::template Impl<VertexType>;
+  using PropertyBase = Properties::template Impl<VertexType>;
+  using vertex_type = TraitBase::vertex_type;
+  using edge_type = TraitBase::edge_type;
+  static constexpr bool directed_ = TraitBase::directed_;
 
-  using TraitBase::add_edge;
-  using TraitBase::add_vertex;
-  using TraitBase::adj;
-  using TraitBase::has_edge;
-  using TraitBase::has_vertex;
-  using TraitBase::vertices;
+  void add_edge(const vertex_type &src, const vertex_type &dst) {
+    TraitBase::add_edge(src, dst);
+  }
+
+  auto adj(const vertex_type &src) { return TraitBase::adj(src); }
+
+  auto adj(const vertex_type &src) const { return TraitBase::adj(src); }
+
+  const auto &vertices() const noexcept { return TraitBase::vertices(); }
+
+  bool has_vertex(const vertex_type &src) const noexcept {
+    return TraitBase::has_vertex(src);
+  }
+
+  bool has_edge(const edge_type &edge) const noexcept {
+    return TraitBase::has_edge(edge);
+  }
+
+  template <typename Derived>
+  auto &operator()(VertexPropertyTag<Derived> tag, const vertex_type &vertex) {
+    if (!has_vertex(vertex)) {
+      throw invalid_argument("Vertex is not in the graph");
+    }
+    return PropertyBase::operator()(tag.derived(), vertex);
+  }
+
+  template <typename Derived>
+  const auto &operator()(VertexPropertyTag<Derived> tag,
+                         const vertex_type &vertex) const {
+    if (!has_vertex(vertex)) {
+      throw invalid_argument("Vertex is not in the graph");
+    }
+    return PropertyBase::operator()(tag.derived(), vertex);
+  }
+
+  template <typename Derived>
+  auto &operator()(EdgePropertyTag<Derived> tag, edge_type edge) {
+    if constexpr (!directed_) {
+      if (edge.first > edge.second) {
+        swap(edge.first, edge.second);
+      }
+    }
+    if (!has_edge(edge)) {
+      throw invalid_argument("Edge is not in the graph");
+    }
+    return PropertyBase::operator()(tag.derived(), edge);
+  }
+
+  template <typename Derived>
+  const auto &operator()(EdgePropertyTag<Derived> tag,
+                         const edge_type &edge) const {
+    if constexpr (!directed_) {
+      if (edge.first > edge.second) {
+        swap(edge.first, edge.second);
+      }
+    }
+    if (!has_edge(edge)) {
+      throw invalid_argument("Edge is not in the graph");
+    }
+    return PropertyBase::operator()(tag.derived(), edge);
+  }
 };
 
 template <Descriptor Vertex, typename Derived> struct AdjListTraits {
