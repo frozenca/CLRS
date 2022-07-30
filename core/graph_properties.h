@@ -28,9 +28,10 @@ enum class GraphPropertyTag : int32_t {
   VertexLink,
   EdgeWeight,
   GraphTopSort,
+  GraphPath,
 };
 
-template<> struct Hash<GraphPropertyTag> {
+template <> struct Hash<GraphPropertyTag> {
   size_t operator()(const GraphPropertyTag &tag) const {
     return Hash<uint32_t>{}(bit_cast<uint32_t>(tag));
   }
@@ -40,11 +41,7 @@ struct Property {
   virtual ~Property() {}
 };
 
-enum class VisitMark {
-  Unvisited,
-  Visiting,
-  Visited
-};
+enum class VisitMark { Unvisited, Visiting, Visited };
 
 template <typename PropertyType, Descriptor VertexType>
 struct VertexProperty final : public Property {
@@ -82,15 +79,11 @@ private:
   unordered_map<EdgeType, PropertyType, Hash<EdgeType>> edge_properties_;
 };
 
-template <typename PropertyType>
-struct GraphProperty final : public Property {
-  PropertyType& operator()() {
-    return graph_property_;
-  }
+template <typename PropertyType> struct GraphProperty final : public Property {
+  PropertyType &operator()() { return graph_property_; }
 
-  const PropertyType& operator()() const {
-    return graph_property_;
-  }
+  const PropertyType &operator()() const { return graph_property_; }
+
 private:
   PropertyType graph_property_;
 };

@@ -25,10 +25,12 @@ string generate_random_abcde_string() {
 }
 
 int main() {
-  fc::SoundGraph g;
+  fc::DiGraph<int> g;
   mt19937 gen(random_device{}());
   uniform_int_distribution<int> index_dist(0, 50);
   uniform_real_distribution<float> trans_prob_dist(0.0f, 1.0f);
+  auto &sound =
+      g.add_edge_property<fc::Sound>(fc::GraphPropertyTag::EdgeWeight);
   for (int i = 0; i < 3000; ++i) {
     int src = index_dist(gen);
     int dst = index_dist(gen);
@@ -38,17 +40,16 @@ int main() {
       swap(src, dst);
     }
     g.add_edge(src, dst);
-    g(fc::e_w, {src, dst}) = {generate_random_abcde_string(),
-                              trans_prob_dist(gen)};
+    sound({src, dst}) = {generate_random_abcde_string(), trans_prob_dist(gen)};
   }
   // normalize transition probs
   for (int i = 0; i < g.size(); ++i) {
     float prob_sum = 0.0f;
     for (const auto &e : g.adj(i)) {
-      prob_sum += g(fc::e_w, e).prob_;
+      prob_sum += sound(e).prob_;
     }
     for (auto &e : g.adj(i)) {
-      g(fc::e_w, e).prob_ /= prob_sum;
+      sound(e).prob_ /= prob_sum;
     }
   }
 
@@ -58,7 +59,7 @@ int main() {
     int curr = 0;
     while (!g.adj(curr).empty()) {
       const auto &next_edge = *g.adj(curr).begin();
-      target_sound_sequence.emplace_back(g(fc::e_w, next_edge).sound_);
+      target_sound_sequence.emplace_back(sound(next_edge).sound_);
       curr = next_edge.second;
     }
   }
@@ -75,9 +76,10 @@ int main() {
     assert(!path.empty());
     float prob = 1.0f;
     for (int i = 0; i < ssize(path) - 1; ++i) {
-      const auto &sound = g(fc::e_w, {path[i], path[i + 1]});
-      cout << path[i] << "->" << path[i + 1] << '(' << sound.sound_ << ")\n";
-      prob *= sound.prob_;
+      const auto &curr_sound = sound({path[i], path[i + 1]});
+      cout << path[i] << "->" << path[i + 1] << '(' << curr_sound.sound_
+           << ")\n";
+      prob *= curr_sound.prob_;
     }
     cout << "Path probability " << prob << '\n';
   }
@@ -87,8 +89,9 @@ int main() {
     auto [path, prob] = fc::viterbi_optimal_path(g, 0, target_sound_sequence);
     assert(!path.empty());
     for (int i = 0; i < ssize(path) - 1; ++i) {
-      const auto &sound = g(fc::e_w, {path[i], path[i + 1]});
-      cout << path[i] << "->" << path[i + 1] << '(' << sound.sound_ << ")\n";
+      const auto &curr_sound = sound({path[i], path[i + 1]});
+      cout << path[i] << "->" << path[i + 1] << '(' << curr_sound.sound_
+           << ")\n";
     }
     cout << "Path probability " << prob << '\n';
   }

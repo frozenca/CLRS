@@ -14,7 +14,7 @@
 #include <14_dynamic_programming/easy/problems_04_printing_neatly.h>
 #include <14_dynamic_programming/easy/problems_05_edit_distance.h>
 #include <14_dynamic_programming/easy/problems_06_planning_a_company_party.h>
-// #include <14_dynamic_programming/easy/problems_07_viterbi_algorithm.h>
+#include <14_dynamic_programming/easy/problems_07_viterbi_algorithm.h>
 #include <14_dynamic_programming/easy/problems_08_image_compression_by_seam_carving.h>
 #include <14_dynamic_programming/easy/problems_09_breaking_a_string.h>
 #include <14_dynamic_programming/easy/problems_10_planning_an_investment_strategy.h>

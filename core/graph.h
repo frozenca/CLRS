@@ -45,15 +45,9 @@ public:
     return TraitBase::vertices().size();
   }
 
-  auto &&move_vertices() noexcept { return move(TraitBase::move_vertices()); }
-
   const auto &edges() const noexcept { return TraitBase::edges(); }
 
-  auto &&move_edges() noexcept { return move(TraitBase::move_edges()); }
-
   const auto &out_edges() const noexcept { return TraitBase::out_edges(); }
-
-  auto &&move_out_edges() noexcept { return move(TraitBase::move_out_edges()); }
 
   bool has_vertex(const vertex_type &src) const noexcept {
     return TraitBase::has_vertex(src);
