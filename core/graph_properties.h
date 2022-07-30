@@ -8,7 +8,6 @@
 #include <unordered_map>
 #include <vector>
 
-
 namespace frozenca {
 
 using namespace std;
@@ -92,12 +91,138 @@ concept HasVertexDistanceProperty = requires(U u) {
   getVertexDistType(u);
 };
 
-template <HasVertexDistanceProperty T>
-using VertexDistanceType = decltype(getVertexDistType(declval<T>()));
-
 template <typename DistanceType> struct VertexDistanceProperty {
   template <Descriptor VertexType>
   using Impl = VertexDistanceImpl<DistanceType, VertexType>;
+};
+
+struct VertexRankTag : public VertexPropertyTag<VertexRankTag> {};
+
+VertexRankTag v_rank;
+
+template <Descriptor VertexType> struct VertexRankImpl {
+
+  using rank_t = index_t;
+
+  static constexpr bool int_vertex_ = is_integral_v<VertexType>;
+
+  rank_t &operator()(VertexRankTag, const VertexType &vertex) {
+    if constexpr (int_vertex_) {
+      if (vertex >= ssize(vertex_ranks_)) {
+        vertex_ranks_.resize(vertex + 1);
+      }
+    }
+    return vertex_ranks_[vertex];
+  }
+  const rank_t &operator()(VertexRankTag, const VertexType &vertex) const {
+    return vertex_ranks_.at(vertex);
+  }
+
+  const auto &operator()(VertexRankTag) const noexcept { return vertex_ranks_; }
+
+  auto &&operator()(VertexRankTag) noexcept { return move(vertex_ranks_); }
+
+  conditional_t<int_vertex_, vector<rank_t>, unordered_map<VertexType, rank_t>>
+      vertex_ranks_;
+};
+
+template <Descriptor VertexType>
+index_t getVertexRankType(const VertexRankImpl<VertexType> &);
+
+template <typename U>
+concept HasVertexRankProperty = requires(U u) {
+  getVertexRankType(u);
+};
+
+struct VertexRankProperty {
+  template <Descriptor VertexType> using Impl = VertexRankImpl<VertexType>;
+};
+
+struct VertexParentTag : public VertexPropertyTag<VertexParentTag> {};
+
+VertexParentTag v_parent;
+
+template <Descriptor VertexType> struct VertexParentImpl {
+
+  static constexpr bool int_vertex_ = is_integral_v<VertexType>;
+
+  VertexType &operator()(VertexParentTag, const VertexType &vertex) {
+    if constexpr (int_vertex_) {
+      if (vertex >= ssize(vertex_parents_)) {
+        vertex_parents_.resize(vertex + 1);
+      }
+    }
+    return vertex_parents_[vertex];
+  }
+  const VertexType &operator()(VertexParentTag,
+                               const VertexType &vertex) const {
+    return vertex_parents_.at(vertex);
+  }
+
+  const auto &operator()(VertexParentTag) const noexcept {
+    return vertex_parents_;
+  }
+
+  auto &&operator()(VertexParentTag) noexcept { return move(vertex_parents_); }
+
+  conditional_t<int_vertex_, vector<VertexType>,
+                unordered_map<VertexType, VertexType>>
+      vertex_parents_;
+};
+
+template <Descriptor VertexType>
+VertexType getVertexParentType(const VertexParentImpl<VertexType> &);
+
+template <typename U>
+concept HasVertexParentProperty = requires(U u) {
+  getVertexParentType(u);
+};
+
+struct VertexParentProperty {
+  template <Descriptor VertexType> using Impl = VertexParentImpl<VertexType>;
+};
+
+struct VertexChildTag : public VertexPropertyTag<VertexChildTag> {};
+
+VertexChildTag v_child;
+
+template <Descriptor VertexType> struct VertexChildImpl {
+
+  static constexpr bool int_vertex_ = is_integral_v<VertexType>;
+
+  VertexType &operator()(VertexChildTag, const VertexType &vertex) {
+    if constexpr (int_vertex_) {
+      if (vertex >= ssize(vertex_children_)) {
+        vertex_children_.resize(vertex + 1);
+      }
+    }
+    return vertex_children_[vertex];
+  }
+  const VertexType &operator()(VertexChildTag, const VertexType &vertex) const {
+    return vertex_children_.at(vertex);
+  }
+
+  const auto &operator()(VertexChildTag) const noexcept {
+    return vertex_children_;
+  }
+
+  auto &&operator()(VertexChildTag) noexcept { return move(vertex_children_); }
+
+  conditional_t<int_vertex_, vector<VertexType>,
+                unordered_map<VertexType, VertexType>>
+      vertex_children_;
+};
+
+template <Descriptor VertexType>
+VertexType getVertexChildType(const VertexChildImpl<VertexType> &);
+
+template <typename U>
+concept HasVertexChildProperty = requires(U u) {
+  getVertexChildType(u);
+};
+
+struct VertexChildProperty {
+  template <Descriptor VertexType> using Impl = VertexChildImpl<VertexType>;
 };
 
 struct VertexVisitedTag : public VertexPropertyTag<VertexVisitedTag> {};
@@ -141,9 +266,6 @@ concept HasVertexVisitedProperty = requires(U u) {
   getVertexVisitedType(u);
 };
 
-template <HasVertexVisitedProperty T>
-using VertexVisitedType = decltype(getVertexVisitedType(declval<T>()));
-
 struct VertexVisitedProperty {
   template <Descriptor VertexType> using Impl = VertexVisitedImpl<VertexType>;
 };
@@ -175,12 +297,27 @@ concept HasEdgeWeightProperty = requires(U u) {
   getEdgeWeightType(u);
 };
 
-template <HasEdgeWeightProperty T>
-using EdgeWeightType = decltype(getEdgeWeightType(declval<T>()));
-
 template <typename WeightType> struct EdgeWeightProperty {
   template <Descriptor VertexType>
   using Impl = EdgeWeightImpl<WeightType, EdgePair<VertexType>>;
+};
+
+struct TraversalProperty {
+  template <Descriptor VertexType>
+  using Impl = GraphProperties<VertexType, VertexVisitedProperty>;
+};
+
+struct UnionFindProperties {
+  template <Descriptor VertexType>
+  using Impl = GraphProperties<VertexType, VertexParentProperty,
+                               VertexRankProperty, VertexChildProperty>;
+};
+
+template <typename DistType> struct TraversalWeightProperties {
+  template <Descriptor VertexType>
+  using Impl = GraphProperties<VertexType, VertexVisitedProperty,
+                               VertexDistanceProperty<DistType>,
+                               EdgeWeightProperty<DistType>>;
 };
 
 } // namespace frozenca

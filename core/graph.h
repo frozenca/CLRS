@@ -78,6 +78,10 @@ public:
     }
   }
 
+  void add_vertex(const vertex_type& v) {
+    TraitBase::add_vertex(v);
+  }
+
   void add_edge(const vertex_type &src, const vertex_type &dst) {
     TraitBase::add_edge(src, dst);
   }
@@ -282,21 +286,16 @@ template <bool Directed, typename ContainerTraitTag> struct GraphTraits {
 template <typename ContainerTraitTag>
 using DiGraphTraits = GraphTraits<true, ContainerTraitTag>;
 
-struct TraversalProperty {
-  template <Descriptor VertexType>
-  using Impl = GraphProperties<VertexType, VertexVisitedProperty>;
-};
-
-template <typename DistType> struct TraversalWeightProperties {
-  template <Descriptor VertexType>
-  using Impl = GraphProperties<VertexType, VertexVisitedProperty,
-                               VertexDistanceProperty<DistType>,
-                               EdgeWeightProperty<DistType>>;
-};
+template <typename ContainerTraitTag>
+using UndirGraphTraits = GraphTraits<false, ContainerTraitTag>;
 
 template <Descriptor VertexType>
 using DiGraph =
     Graph<VertexType, DiGraphTraits<AdjListTraitTag>, TraversalProperty>;
+
+template <Descriptor VertexType>
+using UnionFindGraph =
+    Graph<VertexType, UndirGraphTraits<AdjListTraitTag>, UnionFindProperties>;
 
 template <Descriptor VertexType, typename WeightType>
 using WeightedDiGraph = Graph<VertexType, DiGraphTraits<AdjListTraitTag>,
