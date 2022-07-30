@@ -19,7 +19,7 @@ template <typename T>
 concept GraphConcept = T::is_graph_;
 
 template <typename T>
-concept DiGraphConcept = GraphConcept<T> && T::is_directed_;
+concept DiGraphConcept = GraphConcept<T> && T::directed_;
 
 template <typename Derived> struct VertexPropertyTag {
   Derived &derived() noexcept { return static_cast<Derived &>(*this); }
@@ -183,12 +183,6 @@ using EdgeWeightType = decltype(getEdgeWeightType(declval<T>()));
 template <Arithmetic WeightType> struct EdgeWeightProperty {
   template <Descriptor VertexType>
   using Impl = EdgeWeightImpl<WeightType, pair<VertexType, VertexType>>;
-};
-
-template <Arithmetic DistType> struct DijkstraProperties {
-  template <Descriptor VertexType>
-  using Impl = GraphProperties<VertexType, VertexDistanceProperty<DistType>,
-                               EdgeWeightProperty<DistType>>;
 };
 
 } // namespace frozenca

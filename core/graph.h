@@ -143,7 +143,7 @@ public:
 
   template <typename Derived>
   const auto &operator()(EdgePropertyTag<Derived> tag,
-                         const edge_type &edge) const {
+                         edge_type edge) const {
     if constexpr (!directed_) {
       if (edge.first > edge.second) {
         swap(edge.first, edge.second);
@@ -278,6 +278,26 @@ template <bool Directed, typename ContainerTraitTag> struct GraphTraits {
 
 template <typename ContainerTraitTag>
 using DiGraphTraits = GraphTraits<true, ContainerTraitTag>;
+
+struct TraversalProperty {
+  template <Descriptor VertexType>
+  using Impl = GraphProperties<VertexType, VertexVisitedProperty>;
+};
+
+template <Arithmetic DistType> struct TraversalWeightProperties {
+  template <Descriptor VertexType>
+  using Impl = GraphProperties<VertexType, VertexVisitedProperty,
+                               VertexDistanceProperty<DistType>,
+                               EdgeWeightProperty<DistType>>;
+};
+
+template <Descriptor VertexType>
+using DiGraph =
+    Graph<VertexType, DiGraphTraits<AdjListTraitTag>, TraversalProperty>;
+
+template <Descriptor VertexType, Arithmetic WeightType>
+using WeightedDiGraph = Graph<VertexType, DiGraphTraits<AdjListTraitTag>,
+                              TraversalWeightProperties<WeightType>>;
 
 } // namespace frozenca
 

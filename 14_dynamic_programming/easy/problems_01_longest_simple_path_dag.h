@@ -3,7 +3,7 @@
 
 #include <cassert>
 #include <common.h>
-#include <graph.h>
+#include <graph_algorithms.h>
 #include <limits>
 #include <vector>
 
@@ -11,45 +11,32 @@ namespace frozenca {
 
 using namespace std;
 
-void topological_sort_helper(const WeightedDiGraph<> &g,
-                             vector<int> &visited, vector<index_t> &top_sort,
-                             index_t i) {
-  visited[i] = true;
+template <Descriptor V, Arithmetic W>
+float longest_simple_path_dag(WeightedDiGraph<V, W> &g, const V &src,
+                              const V &dst) {
 
-  for (const auto &[dst, w] : g.edges(i)) {
-    if (!visited[dst]) {
-      topological_sort_helper(g, visited, top_sort, dst);
-    }
+  constexpr auto MINF = numeric_limits<W>::lowest();
+  for (const auto &vertex : g.vertices()) {
+    g(v_dist, vertex) = MINF;
   }
-  top_sort.push_back(i);
-}
+  g(v_dist, src) = 0;
 
-float longest_simple_path_dag(const WeightedDiGraph<> &g, index_t src,
-                              index_t dst) {
-  vector<index_t> top_sort;
-  auto V = g.size();
-  vector<float> dist(V, numeric_limits<float>::lowest());
-  vector<int> visited(V);
-  assert(src < V);
-
-  for (index_t i = 0; i < V; ++i) {
-    if (!visited[i]) {
-      topological_sort_helper(g, visited, top_sort, i);
-    }
-  }
-  dist[src] = 0;
+  auto top_sort = topological_sort(g);
 
   while (!top_sort.empty()) {
     auto curr = top_sort.back();
     top_sort.pop_back();
 
-    if (dist[curr] != numeric_limits<float>::lowest()) {
-      for (const auto &[next, w] : g.edges(curr)) {
-        dist[next] = max(dist[next], dist[curr] + w);
+    if (g(v_dist, curr) != MINF) {
+      for (auto [_, next] : g.adj(curr)) {
+        auto alt = g(v_dist, curr) + g(e_w, {curr, next});
+        if (alt > g(v_dist, next)) {
+          g(v_dist, next) = alt;
+        }
       }
     }
   }
-  return dist[dst];
+  return g(v_dist, dst);
 }
 
 } // namespace frozenca
