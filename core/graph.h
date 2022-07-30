@@ -56,6 +56,28 @@ public:
     }
   }
 
+  template <typename OtherProperties>
+  Graph(Graph<VertexType, Traits, OtherProperties> &&other_graph) {
+    this->vertices_ = other_graph.move_vertices();
+    this->edges_ = other_graph.move_edges();
+    this->out_edges_ = other_graph.move_out_edges();
+
+    using PropertyImpl = Properties::template Impl<VertexType>;
+    using OtherPropertyImpl = OtherProperties::template Impl<VertexType>;
+    if constexpr (HasEdgeWeightProperty<PropertyImpl> &&
+                  HasEdgeWeightProperty<OtherPropertyImpl>) {
+      this->edge_weights_ = other_graph(e_w);
+    }
+    if constexpr (HasVertexDistanceProperty<PropertyImpl> &&
+                  HasVertexDistanceProperty<OtherPropertyImpl>) {
+      this->vertex_distances_ = other_graph(v_dist);
+    }
+    if constexpr (HasVertexVisitedProperty<PropertyImpl> &&
+                  HasVertexVisitedProperty<OtherPropertyImpl>) {
+      this->vertex_visited_ = other_graph(v_visited);
+    }
+  }
+
   void add_edge(const vertex_type &src, const vertex_type &dst) {
     TraitBase::add_edge(src, dst);
   }
@@ -66,9 +88,15 @@ public:
 
   const auto &vertices() const noexcept { return TraitBase::vertices(); }
 
+  auto &&move_vertices() noexcept { return move(TraitBase::move_vertices()); }
+
   const auto &edges() const noexcept { return TraitBase::edges(); }
 
+  auto &&move_edges() noexcept { return move(TraitBase::move_edges()); }
+
   const auto &out_edges() const noexcept { return TraitBase::out_edges(); }
+
+  auto &&move_out_edges() noexcept { return move(TraitBase::move_out_edges()); }
 
   bool has_vertex(const vertex_type &src) const noexcept {
     return TraitBase::has_vertex(src);
@@ -154,9 +182,15 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
 
   const auto &vertices() const noexcept { return vertices_; }
 
+  auto &&move_vertices() noexcept { return move(vertices_); }
+
   const auto &edges() const noexcept { return edges_; }
 
+  auto &&move_edges() noexcept { return move(edges_); }
+
   const auto &out_edges() const noexcept { return out_edges_; }
+
+  auto &&move_out_edges() noexcept { return move(out_edges_); }
 
   void add_vertex(const vertex_type &vertex) {
     if constexpr (int_vertex_) {

@@ -76,6 +76,10 @@ struct VertexDistanceImpl {
     return vertex_distances_;
   }
 
+  auto &&operator()(VertexDistanceTag) noexcept {
+    return move(vertex_distances_);
+  }
+
   conditional_t<int_vertex_, vector<DistanceType>,
                 unordered_map<VertexType, DistanceType>>
       vertex_distances_;
@@ -124,6 +128,8 @@ template <Descriptor VertexType> struct VertexVisitedImpl {
     return vertex_visited_;
   }
 
+  auto &&operator()(VertexVisitedTag) noexcept { return move(vertex_visited_); }
+
   conditional_t<int_vertex_, vector<Visited>,
                 unordered_map<VertexType, Visited>>
       vertex_visited_;
@@ -157,6 +163,8 @@ template <Arithmetic WeightType, typename EdgeType> struct EdgeWeightImpl {
   }
 
   const auto &operator()(EdgeWeightTag) const noexcept { return edge_weights_; }
+
+  auto &&operator()(EdgeWeightTag) noexcept { return move(edge_weights_); }
 
   map<EdgeType, WeightType> edge_weights_;
 };
