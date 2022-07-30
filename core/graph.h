@@ -3,8 +3,12 @@
 
 #include <common.h>
 #include <concepts>
+#include <graph_properties.h>
+#include <iostream>
 #include <list>
 #include <map>
+#include <memory>
+#include <numeric>
 #include <ranges>
 #include <set>
 #include <unordered_map>
@@ -13,38 +17,6 @@
 namespace frozenca {
 
 using namespace std;
-
-template <typename T>
-concept Descriptor = is_default_constructible_v<T> && is_assignable_v<T &, T> &&
-    equality_comparable<T>;
-
-template <typename Derived> struct EdgePropertyTag {
-  Derived &derived() noexcept { return static_cast<Derived &>(*this); }
-  const Derived &derived() const noexcept {
-    return static_cast<const Derived &>(*this);
-  }
-};
-
-struct EdgeWeightTag : public EdgePropertyTag<EdgeWeightTag> {};
-
-EdgeWeightTag e_w;
-
-template <typename Derived> struct VertexPropertyTag {
-  Derived &derived() noexcept { return static_cast<Derived &>(*this); }
-  const Derived &derived() const noexcept {
-    return static_cast<const Derived &>(*this);
-  }
-};
-
-struct VertexDistanceTag : public VertexPropertyTag<VertexDistanceTag> {};
-
-VertexDistanceTag v_dist;
-
-template <typename Derived> struct EmptyProperty {
-  void operator()() const noexcept {
-    // do nothing
-  }
-};
 
 template <Descriptor VertexType, typename Traits, typename Properties>
 class Graph : private Traits::template Impl<VertexType>,
@@ -55,6 +27,34 @@ public:
   using vertex_type = TraitBase::vertex_type;
   using edge_type = TraitBase::edge_type;
   static constexpr bool directed_ = TraitBase::directed_;
+  static constexpr bool is_graph_ = true;
+
+  Graph() : TraitBase(), PropertyBase() {}
+
+  // can't convert from graph with different graph traits
+  // only conversion between graph with the same graph traits
+  // (but possibly different graph properties) are allowed
+  template <typename OtherProperties>
+  Graph(const Graph<VertexType, Traits, OtherProperties> &other_graph) {
+    this->vertices_ = other_graph.vertices();
+    this->edges_ = other_graph.edges();
+    this->out_edges_ = other_graph.out_edges();
+
+    using PropertyImpl = Properties::template Impl<VertexType>;
+    using OtherPropertyImpl = OtherProperties::template Impl<VertexType>;
+    if constexpr (HasEdgeWeightProperty<PropertyImpl> &&
+                  HasEdgeWeightProperty<OtherPropertyImpl>) {
+      this->edge_weights_ = other_graph(e_w);
+    }
+    if constexpr (HasVertexDistanceProperty<PropertyImpl> &&
+                  HasVertexDistanceProperty<OtherPropertyImpl>) {
+      this->vertex_distances_ = other_graph(v_dist);
+    }
+    if constexpr (HasVertexVisitedProperty<PropertyImpl> &&
+                  HasVertexVisitedProperty<OtherPropertyImpl>) {
+      this->vertex_visited_ = other_graph(v_visited);
+    }
+  }
 
   void add_edge(const vertex_type &src, const vertex_type &dst) {
     TraitBase::add_edge(src, dst);
@@ -65,6 +65,10 @@ public:
   auto adj(const vertex_type &src) const { return TraitBase::adj(src); }
 
   const auto &vertices() const noexcept { return TraitBase::vertices(); }
+
+  const auto &edges() const noexcept { return TraitBase::edges(); }
+
+  const auto &out_edges() const noexcept { return TraitBase::out_edges(); }
 
   bool has_vertex(const vertex_type &src) const noexcept {
     return TraitBase::has_vertex(src);
@@ -89,6 +93,11 @@ public:
       throw invalid_argument("Vertex is not in the graph");
     }
     return PropertyBase::operator()(tag.derived(), vertex);
+  }
+
+  template <typename Derived>
+  const auto &operator()(VertexPropertyTag<Derived> tag) const {
+    return PropertyBase::operator()(tag.derived());
   }
 
   template <typename Derived>
@@ -117,11 +126,18 @@ public:
     }
     return PropertyBase::operator()(tag.derived(), edge);
   }
+
+  template <typename Derived>
+  const auto &operator()(EdgePropertyTag<Derived> tag) const {
+    return PropertyBase::operator()(tag.derived());
+  }
 };
 
 template <Descriptor Vertex, typename Derived> struct AdjListTraits {
   using vertex_type = Vertex;
-  using vertices_type = unordered_set<vertex_type>;
+  static constexpr bool int_vertex_ = is_integral_v<vertex_type>;
+  using vertices_type = conditional_t<int_vertex_, vector<vertex_type>,
+                                      unordered_set<vertex_type>>;
   using vertex_iterator_type = vertices_type::iterator;
 
   using edge_type = pair<vertex_type, vertex_type>;
@@ -138,8 +154,24 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
 
   const auto &vertices() const noexcept { return vertices_; }
 
+  const auto &edges() const noexcept { return edges_; }
+
+  const auto &out_edges() const noexcept { return out_edges_; }
+
   void add_vertex(const vertex_type &vertex) {
-    vertices_.insert(vertex);
+    if constexpr (int_vertex_) {
+      if (vertex < 0) {
+        throw invalid_argument("Negative integer vertex");
+      }
+      auto curr_size = ssize(vertices_);
+      if (vertex >= curr_size) {
+        vertices_.resize(vertex + 1);
+        iota(vertices_.begin() + curr_size, vertices_.end(),
+             static_cast<vertex_type>(curr_size));
+      }
+    } else {
+      vertices_.insert(vertex);
+    }
     if (!out_edges_.contains(vertex)) {
       edges_.emplace_front();
       out_edges_.emplace(vertex, edges_.begin());
@@ -147,7 +179,11 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
   }
 
   bool has_vertex(const vertex_type &vertex) const {
-    return vertices_.contains(vertex);
+    if constexpr (int_vertex_) {
+      return vertex >= 0 && vertex < ssize(vertices_);
+    } else {
+      vertices_.contains(vertex);
+    }
   }
 
   ranges::subrange<edge_iterator_type, edge_iterator_type>
@@ -208,52 +244,6 @@ template <bool Directed, typename ContainerTraitTag> struct GraphTraits {
 
 template <typename ContainerTraitTag>
 using DiGraphTraits = GraphTraits<true, ContainerTraitTag>;
-
-template <Descriptor VertexType, typename... BaseProperties>
-struct GraphProperties : public BaseProperties::template Impl<VertexType>... {
-  using BaseProperties::template Impl<VertexType>::operator()...;
-};
-
-template <Arithmetic WeightType, typename EdgeType> struct EdgeWeightImpl {
-  WeightType &operator()(EdgeWeightTag, const EdgeType &edge) {
-    return weights_[edge];
-  }
-  const WeightType &operator()(EdgeWeightTag, const EdgeType &edge) const {
-    return weights_.at(edge);
-  }
-
-  map<EdgeType, WeightType> weights_;
-};
-
-template <Arithmetic WeightType> struct EdgeWeightProperty {
-  template <Descriptor VertexType>
-  using Impl = EdgeWeightImpl<WeightType, pair<VertexType, VertexType>>;
-};
-
-template <Arithmetic DistanceType, Descriptor VertexType>
-struct VertexDistanceImpl {
-
-  DistanceType &operator()(VertexDistanceTag, const VertexType &vertex) {
-    return distances_[vertex];
-  }
-  const DistanceType &operator()(VertexDistanceTag,
-                                 const VertexType &vertex) const {
-    return distances_.at(vertex);
-  }
-
-  unordered_map<VertexType, DistanceType> distances_;
-};
-
-template <Arithmetic DistanceType> struct VertexDistanceProperty {
-  template <Descriptor VertexType>
-  using Impl = VertexDistanceImpl<DistanceType, VertexType>;
-};
-
-template <Arithmetic DistType> struct DijkstraProperties {
-  template <Descriptor VertexType>
-  using Impl = GraphProperties<VertexType, VertexDistanceProperty<DistType>,
-                               EdgeWeightProperty<DistType>>;
-};
 
 } // namespace frozenca
 
