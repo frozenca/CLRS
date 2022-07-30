@@ -57,17 +57,15 @@ void make_set(VertexProperty<V, V> &parent, VertexProperty<int, V> &rank,
   link(vertex) = vertex;
 }
 
-template <Descriptor V>
-V find_set(UndirGraph<V> &g, VertexProperty<V, V> &parent, const V &v) {
+template <Descriptor V> V find_set(VertexProperty<V, V> &parent, const V &v) {
   if (parent(v) != v) {
-    parent(v) = find_set(g, parent, parent(v));
+    parent(v) = find_set(parent, parent(v));
   }
   return parent(v);
 }
 
 template <Descriptor V>
-V find_set_iterative(UndirGraph<V> &g, VertexProperty<V, V> &parent,
-                     const V &v) {
+V find_set_iterative(VertexProperty<V, V> &parent, const V &v) {
   auto r = v;
   while (parent(v) != v) {
     r = parent(v);
@@ -120,8 +118,8 @@ template <Descriptor V> void union_find_by_rank(UndirGraph<V> &g) {
 
   for (const auto &v : g.vertices()) {
     for (const auto &[_, u] : g.adj(v)) {
-      auto vr = find_set(g, parent, v);
-      auto ur = find_set(g, parent, u);
+      auto vr = find_set(parent, v);
+      auto ur = find_set(parent, u);
       link_by_rank(parent, rank, link, vr, ur);
     }
   }
@@ -153,8 +151,8 @@ template <Descriptor V> void union_find_by_size(UndirGraph<V> &g) {
 
   for (const auto &v : g.vertices()) {
     for (const auto &[_, u] : g.adj(v)) {
-      auto vr = find_set(g, parent, v);
-      auto ur = find_set(g, parent, u);
+      auto vr = find_set(parent, v);
+      auto ur = find_set(parent, u);
       link_by_size(parent, rank, link, vr, ur);
     }
   }
