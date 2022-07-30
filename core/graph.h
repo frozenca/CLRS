@@ -144,15 +144,9 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
 
   const auto &vertices() const noexcept { return vertices_; }
 
-  auto &&move_vertices() noexcept { return move(vertices_); }
-
   const auto &edges() const noexcept { return edges_; }
 
-  auto &&move_edges() noexcept { return move(edges_); }
-
   const auto &out_edges() const noexcept { return out_edges_; }
-
-  auto &&move_out_edges() noexcept { return move(out_edges_); }
 
   void add_vertex(const vertex_type &vertex) {
     if constexpr (int_vertex_) {
