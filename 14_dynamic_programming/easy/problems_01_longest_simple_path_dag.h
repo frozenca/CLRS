@@ -11,32 +11,37 @@ namespace frozenca {
 
 using namespace std;
 
-template <Descriptor V, Arithmetic W>
-float longest_simple_path_dag(WeightedDiGraph<V, W> &g, const V &src,
-                              const V &dst) {
+template <Descriptor V>
+float longest_simple_path_dag(DiGraph<V> &g, const V &src, const V &dst) {
 
-  constexpr auto MINF = numeric_limits<W>::lowest();
+  auto &weight = g.add_edge_property<float>(GraphPropertyTag::EdgeWeight);
+  auto &dist = g.add_vertex_property<float>(GraphPropertyTag::VertexDistance);
+
+  constexpr auto MINF = numeric_limits<float>::lowest();
   for (const auto &vertex : g.vertices()) {
-    g(v_dist, vertex) = MINF;
+    dist(vertex) = MINF;
   }
-  g(v_dist, src) = 0;
+  dist(src) = 0;
 
-  auto top_sort = topological_sort(g);
+  topological_sort(g);
+
+  auto top_sort =
+      g.get_graph_property<list<V>>(GraphPropertyTag::GraphTopSort)();
 
   while (!top_sort.empty()) {
     auto curr = top_sort.back();
     top_sort.pop_back();
 
-    if (g(v_dist, curr) != MINF) {
+    if (dist(curr) != MINF) {
       for (auto [_, next] : g.adj(curr)) {
-        auto alt = g(v_dist, curr) + g(e_w, {curr, next});
-        if (alt > g(v_dist, next)) {
-          g(v_dist, next) = alt;
+        auto alt = dist(curr) + weight({curr, next});
+        if (alt > dist(next)) {
+          dist(next) = alt;
         }
       }
     }
   }
-  return g(v_dist, dst);
+  return dist(dst);
 }
 
 } // namespace frozenca

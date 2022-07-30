@@ -7,7 +7,7 @@ int main() {
   namespace fc = frozenca;
   using namespace std;
 
-  fc::WeightedDiGraph<int, float> g;
+  fc::DiGraph<int> g;
 
   g.add_edge(0, 1);
   g.add_edge(0, 2);
@@ -20,16 +20,19 @@ int main() {
   g.add_edge(3, 5);
   g.add_edge(4, 5);
 
-  g(fc::e_w, {0, 1}) = 5.0f;
-  g(fc::e_w, {0, 2}) = 3.0f;
-  g(fc::e_w, {1, 2}) = 2.0f;
-  g(fc::e_w, {1, 3}) = 6.0f;
-  g(fc::e_w, {2, 3}) = 7.0f;
-  g(fc::e_w, {2, 4}) = 4.0f;
-  g(fc::e_w, {2, 5}) = 2.0f;
-  g(fc::e_w, {3, 4}) = -1.0f;
-  g(fc::e_w, {3, 5}) = 1.0f;
-  g(fc::e_w, {4, 5}) = -2.0f;
+  auto &weight_prop =
+      g.add_edge_property<float>(fc::GraphPropertyTag::EdgeWeight);
+
+  weight_prop({0, 1}) = 5.0f;
+  weight_prop({0, 2}) = 3.0f;
+  weight_prop({1, 2}) = 2.0f;
+  weight_prop({1, 3}) = 6.0f;
+  weight_prop({2, 3}) = 7.0f;
+  weight_prop({2, 4}) = 4.0f;
+  weight_prop({2, 5}) = 2.0f;
+  weight_prop({3, 4}) = -1.0f;
+  weight_prop({3, 5}) = 1.0f;
+  weight_prop({4, 5}) = -2.0f;
 
   cout << fc::longest_simple_path_dag(g, 1, 5) << '\n';
 }

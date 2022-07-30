@@ -18,69 +18,18 @@ namespace frozenca {
 
 using namespace std;
 
-template <Descriptor VertexType, typename Traits, typename Properties>
-class Graph : private Traits::template Impl<VertexType>,
-              private Properties::template Impl<VertexType> {
+template <Descriptor VertexType, typename Traits>
+class Graph : private Traits::template Impl<VertexType> {
 public:
   using TraitBase = Traits::template Impl<VertexType>;
-  using PropertyBase = Properties::template Impl<VertexType>;
   using vertex_type = TraitBase::vertex_type;
   using edge_type = TraitBase::edge_type;
   static constexpr bool directed_ = TraitBase::directed_;
   static constexpr bool is_graph_ = true;
 
-  Graph() : TraitBase(), PropertyBase() {}
+  Graph() : TraitBase() {}
 
-  // can't convert from graph with different graph traits
-  // only conversion between graph with the same graph traits
-  // (but possibly different graph properties) are allowed
-  template <typename OtherProperties>
-  Graph(const Graph<VertexType, Traits, OtherProperties> &other_graph) {
-    this->vertices_ = other_graph.vertices();
-    this->edges_ = other_graph.edges();
-    this->out_edges_ = other_graph.out_edges();
-
-    using PropertyImpl = Properties::template Impl<VertexType>;
-    using OtherPropertyImpl = OtherProperties::template Impl<VertexType>;
-    if constexpr (HasEdgeWeightProperty<PropertyImpl> &&
-                  HasEdgeWeightProperty<OtherPropertyImpl>) {
-      this->edge_weights_ = other_graph(e_w);
-    }
-    if constexpr (HasVertexDistanceProperty<PropertyImpl> &&
-                  HasVertexDistanceProperty<OtherPropertyImpl>) {
-      this->vertex_distances_ = other_graph(v_dist);
-    }
-    if constexpr (HasVertexVisitedProperty<PropertyImpl> &&
-                  HasVertexVisitedProperty<OtherPropertyImpl>) {
-      this->vertex_visited_ = other_graph(v_visited);
-    }
-  }
-
-  template <typename OtherProperties>
-  Graph(Graph<VertexType, Traits, OtherProperties> &&other_graph) {
-    this->vertices_ = other_graph.move_vertices();
-    this->edges_ = other_graph.move_edges();
-    this->out_edges_ = other_graph.move_out_edges();
-
-    using PropertyImpl = Properties::template Impl<VertexType>;
-    using OtherPropertyImpl = OtherProperties::template Impl<VertexType>;
-    if constexpr (HasEdgeWeightProperty<PropertyImpl> &&
-                  HasEdgeWeightProperty<OtherPropertyImpl>) {
-      this->edge_weights_ = other_graph(e_w);
-    }
-    if constexpr (HasVertexDistanceProperty<PropertyImpl> &&
-                  HasVertexDistanceProperty<OtherPropertyImpl>) {
-      this->vertex_distances_ = other_graph(v_dist);
-    }
-    if constexpr (HasVertexVisitedProperty<PropertyImpl> &&
-                  HasVertexVisitedProperty<OtherPropertyImpl>) {
-      this->vertex_visited_ = other_graph(v_visited);
-    }
-  }
-
-  void add_vertex(const vertex_type& v) {
-    TraitBase::add_vertex(v);
-  }
+  void add_vertex(const vertex_type &v) { TraitBase::add_vertex(v); }
 
   void add_edge(const vertex_type &src, const vertex_type &dst) {
     TraitBase::add_edge(src, dst);
@@ -114,58 +63,70 @@ public:
     return TraitBase::has_edge(edge);
   }
 
-  template <typename Derived>
-  auto &operator()(VertexPropertyTag<Derived> tag, const vertex_type &vertex) {
-    if (!has_vertex(vertex)) {
-      throw invalid_argument("Vertex is not in the graph");
-    }
-    return PropertyBase::operator()(tag.derived(), vertex);
+  template <typename PropertyType>
+  VertexProperty<PropertyType, vertex_type> &
+  add_vertex_property(const GraphPropertyTag &tag) {
+    properties_.emplace(
+        tag, make_unique<VertexProperty<PropertyType, vertex_type>>());
+    return get_vertex_property<PropertyType>(tag);
   }
 
-  template <typename Derived>
-  const auto &operator()(VertexPropertyTag<Derived> tag,
-                         const vertex_type &vertex) const {
-    if (!has_vertex(vertex)) {
-      throw invalid_argument("Vertex is not in the graph");
-    }
-    return PropertyBase::operator()(tag.derived(), vertex);
+  template <typename PropertyType>
+  EdgeProperty<PropertyType, edge_type> &
+  add_edge_property(const GraphPropertyTag &tag) {
+    properties_.emplace(tag,
+                        make_unique<EdgeProperty<PropertyType, edge_type>>());
+    return get_edge_property<PropertyType>(tag);
   }
 
-  template <typename Derived>
-  const auto &operator()(VertexPropertyTag<Derived> tag) const {
-    return PropertyBase::operator()(tag.derived());
+  template <typename PropertyType>
+  GraphProperty<PropertyType> &add_graph_property(const GraphPropertyTag &tag) {
+    properties_.emplace(tag, make_unique<GraphProperty<PropertyType>>());
+    return get_graph_property<PropertyType>(tag);
   }
 
-  template <typename Derived>
-  auto &operator()(EdgePropertyTag<Derived> tag, edge_type edge) {
-    if constexpr (!directed_) {
-      if (edge.first > edge.second) {
-        swap(edge.first, edge.second);
-      }
-    }
-    if (!has_edge(edge)) {
-      throw invalid_argument("Edge is not in the graph");
-    }
-    return PropertyBase::operator()(tag.derived(), edge);
+  template <typename PropertyType>
+  VertexProperty<PropertyType, vertex_type> &
+  get_vertex_property(const GraphPropertyTag &tag) {
+    return dynamic_cast<VertexProperty<PropertyType, vertex_type> &>(
+        *properties_.at(tag));
   }
 
-  template <typename Derived>
-  const auto &operator()(EdgePropertyTag<Derived> tag, edge_type edge) const {
-    if constexpr (!directed_) {
-      if (edge.first > edge.second) {
-        swap(edge.first, edge.second);
-      }
-    }
-    if (!has_edge(edge)) {
-      throw invalid_argument("Edge is not in the graph");
-    }
-    return PropertyBase::operator()(tag.derived(), edge);
+  template <typename PropertyType>
+  const VertexProperty<PropertyType, vertex_type> &
+  get_vertex_property(const GraphPropertyTag &tag) const {
+    return dynamic_cast<const VertexProperty<PropertyType, vertex_type> &>(
+        *properties_.at(tag));
   }
 
-  template <typename Derived>
-  const auto &operator()(EdgePropertyTag<Derived> tag) const {
-    return PropertyBase::operator()(tag.derived());
+  template <typename PropertyType>
+  EdgeProperty<PropertyType, edge_type> &
+  get_edge_property(const GraphPropertyTag &tag) {
+    return dynamic_cast<EdgeProperty<PropertyType, edge_type> &>(
+        *properties_.at(tag));
   }
+
+  template <typename PropertyType>
+  const EdgeProperty<PropertyType, edge_type> &
+  get_edge_property(const GraphPropertyTag &tag) const {
+    return dynamic_cast<const EdgeProperty<PropertyType, edge_type> &>(
+        *properties_.at(tag));
+  }
+
+  template <typename PropertyType>
+  GraphProperty<PropertyType> &get_graph_property(const GraphPropertyTag &tag) {
+    return dynamic_cast<GraphProperty<PropertyType> &>(*properties_.at(tag));
+  }
+
+  template <typename PropertyType>
+  const GraphProperty<PropertyType> &
+  get_graph_property(const GraphPropertyTag &tag) const {
+    return dynamic_cast<const GraphProperty<PropertyType> &>(
+        *properties_.at(tag));
+  }
+
+private:
+  unordered_map<GraphPropertyTag, unique_ptr<Property>> properties_;
 };
 
 template <Descriptor Vertex, typename Derived> struct AdjListTraits {
@@ -283,23 +244,11 @@ template <bool Directed, typename ContainerTraitTag> struct GraphTraits {
   using Impl = GraphTraitsImpl<VertexType, Directed, ContainerTraitTag>;
 };
 
-template <typename ContainerTraitTag>
-using DiGraphTraits = GraphTraits<true, ContainerTraitTag>;
-
-template <typename ContainerTraitTag>
-using UndirGraphTraits = GraphTraits<false, ContainerTraitTag>;
+template <Descriptor VertexType>
+using DiGraph = Graph<VertexType, GraphTraits<true, AdjListTraitTag>>;
 
 template <Descriptor VertexType>
-using DiGraph =
-    Graph<VertexType, DiGraphTraits<AdjListTraitTag>, TraversalProperty>;
-
-template <Descriptor VertexType>
-using UnionFindGraph =
-    Graph<VertexType, UndirGraphTraits<AdjListTraitTag>, UnionFindProperties>;
-
-template <Descriptor VertexType, typename WeightType>
-using WeightedDiGraph = Graph<VertexType, DiGraphTraits<AdjListTraitTag>,
-                              TraversalWeightProperties<WeightType>>;
+using UndirGraph = Graph<VertexType, GraphTraits<false, AdjListTraitTag>>;
 
 } // namespace frozenca
 

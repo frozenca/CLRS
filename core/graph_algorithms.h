@@ -3,6 +3,7 @@
 
 #include <common.h>
 #include <graph.h>
+#include <iostream>
 #include <list>
 #include <vector>
 
@@ -11,39 +12,47 @@ namespace frozenca {
 using namespace std;
 
 template <DiGraphConcept DiGraphType>
-bool topological_sort_helper(DiGraphType &g,
-                             list<typename DiGraphType::vertex_type> &top_sort,
-                             const typename DiGraphType::vertex_type &vertex) {
-  g(v_visited, vertex) = Visited::Visiting;
+bool topological_sort_helper(
+    DiGraphType &g,
+    VertexProperty<VisitMark, typename DiGraphType::vertex_type> &visited,
+    GraphProperty<list<typename DiGraphType::vertex_type>> &top_sort,
+    const typename DiGraphType::vertex_type &vertex) {
+  visited(vertex) = VisitMark::Visiting;
 
   for (const auto &[_, dst] : g.adj(vertex)) {
-    auto status = g(v_visited, dst);
-    if (status == Visited::Unvisited) {
-      if (!topological_sort_helper(g, top_sort, dst)) {
-        top_sort.clear();
+    auto status = visited(dst);
+    if (status == VisitMark::Unvisited) {
+      if (!topological_sort_helper(g, visited, top_sort, dst)) {
+        top_sort().clear();
         return false;
       }
-    } else if (status == Visited::Visiting) {
-      top_sort.clear();
+    } else if (status == VisitMark::Visiting) {
+      cerr << "Not a DAG, can't topological sort\n";
+      top_sort().clear();
       return false;
     }
   }
-  g(v_visited, vertex) = Visited::Visited;
-  top_sort.push_back(vertex);
+  visited(vertex) = VisitMark::Visited;
+  top_sort().push_back(vertex);
   return true;
 }
 
-template <DiGraphConcept DiGraphType> auto topological_sort(DiGraphType &g) {
+template <DiGraphConcept DiGraphType> void topological_sort(DiGraphType &g) {
   using vertex_type = DiGraphType::vertex_type;
-  list<vertex_type> top_sort;
+
+  auto &visited =
+      g.add_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
+  auto &top_sort =
+      g.add_graph_property<list<vertex_type>>(GraphPropertyTag::GraphTopSort);
 
   for (const auto &vertex : g.vertices()) {
-    if (g(v_visited, vertex) == Visited::Unvisited) {
-      topological_sort_helper(g, top_sort, vertex);
+    if (visited(vertex) == VisitMark::Unvisited) {
+      topological_sort_helper(g, visited, top_sort, vertex);
     }
   }
-  return top_sort;
 }
+
+/*
 
 template <Descriptor VertexType>
 VertexType find_set(UnionFindGraph<VertexType> &g, const VertexType &v) {
@@ -131,11 +140,16 @@ void link_by_size(UnionFindGraph<VertexType> &g, const VertexType &x,
 }
 
 template <Descriptor VertexType>
+void make_set(UnionFindGraph<VertexType> &g, const VertexType& vertex) {
+  g(v_parent, vertex) = vertex;
+  g(v_rank, vertex) = 0;
+  g(v_child, vertex) = vertex;
+}
+
+template <Descriptor VertexType>
 void union_find_by_size(UnionFindGraph<VertexType> &g) {
   for (const auto &vertex : g.vertices()) {
-    g(v_parent, vertex) = vertex;
-    g(v_rank, vertex) = 0;
-    g(v_child, vertex) = vertex;
+    make_set(g, vertex);
   }
 
   for (const auto &v : g.vertices()) {
@@ -144,6 +158,7 @@ void union_find_by_size(UnionFindGraph<VertexType> &g) {
     }
   }
 }
+*/
 
 } // namespace frozenca
 
