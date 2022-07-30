@@ -19,16 +19,16 @@ struct Sound {
   Sound(string sound, float prob) : sound_{move(sound)}, prob_{prob} {}
 };
 
-using SoundGraph = WeightedDiGraph<Sound>;
+using SoundGraph = WeightedDiGraph<int, Sound>;
 using SequenceIter = vector<string_view>::const_iterator;
 
 bool viterbi_get_path(const SoundGraph &g, SequenceIter s_first,
-                      SequenceIter s_last, index_t curr_index,
-                      vector<index_t> &succ) {
+                      SequenceIter s_last, int curr_index, vector<int> &succ) {
   if (s_first == s_last) {
     return true;
   }
-  for (const auto &[next_index, curr_sound] : g.edges(curr_index)) {
+  for (const auto &[_, next_index] : g.adj(curr_index)) {
+    const auto &curr_sound = g(e_w, {curr_index, next_index});
     if (curr_sound.sound_ == *s_first) {
       auto res = viterbi_get_path(g, next(s_first), s_last, next_index, succ);
       if (res) {
@@ -40,15 +40,15 @@ bool viterbi_get_path(const SoundGraph &g, SequenceIter s_first,
   return false;
 }
 
-vector<index_t> viterbi_path(const SoundGraph &g, index_t src,
-                             const vector<string_view> &target_sequence) {
-  vector<index_t> succ(g.size(), -1);
+vector<int> viterbi_path(const SoundGraph &g, int src,
+                         const vector<string_view> &target_sequence) {
+  vector<int> succ(g.size(), -1);
   auto res = viterbi_get_path(g, target_sequence.begin(), target_sequence.end(),
                               src, succ);
   if (!res) {
     return {};
   }
-  vector<index_t> path;
+  vector<int> path;
   path.push_back(src);
   while (succ[src] != -1) {
     path.push_back(succ[src]);
@@ -57,16 +57,17 @@ vector<index_t> viterbi_path(const SoundGraph &g, index_t src,
   return path;
 }
 
-pair<vector<index_t>, float> viterbi_get_optimal_path(const SoundGraph &g,
-                                                      SequenceIter s_first,
-                                                      SequenceIter s_last,
-                                                      index_t curr_index) {
+pair<vector<int>, float> viterbi_get_optimal_path(const SoundGraph &g,
+                                                  SequenceIter s_first,
+                                                  SequenceIter s_last,
+                                                  int curr_index) {
   if (s_first == s_last) {
-    return {vector<index_t>({curr_index}), 1.0f};
+    return {vector<int>({curr_index}), 1.0f};
   }
-  vector<index_t> seq;
+  vector<int> seq;
   float prob = 0.0f;
-  for (const auto &[next_index, curr_sound] : g.edges(curr_index)) {
+  for (const auto &[_, next_index] : g.adj(curr_index)) {
+    const auto &curr_sound = g(e_w, {curr_index, next_index});
     if (curr_sound.sound_ == *s_first) {
       auto [res_seq, res_prob] =
           viterbi_get_optimal_path(g, next(s_first), s_last, next_index);
@@ -80,8 +81,8 @@ pair<vector<index_t>, float> viterbi_get_optimal_path(const SoundGraph &g,
   return {move(seq), prob};
 }
 
-pair<vector<index_t>, float>
-viterbi_optimal_path(const SoundGraph &g, index_t src,
+pair<vector<int>, float>
+viterbi_optimal_path(const SoundGraph &g, int src,
                      const vector<string_view> &target_sequence) {
   auto [seq, prob] = viterbi_get_optimal_path(g, target_sequence.begin(),
                                               target_sequence.end(), src);

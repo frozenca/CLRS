@@ -1,25 +1,28 @@
 #ifndef __CLRS4_GRAPH_PROPERTIES_H__
 #define __CLRS4_GRAPH_PROPERTIES_H__
 
+#include <bit>
 #include <common.h>
 #include <concepts>
-#include <map>
+#include <functional>
+#include <hashfunction.h>
 #include <unordered_map>
 #include <vector>
+
 
 namespace frozenca {
 
 using namespace std;
 
-template <typename T>
-concept Descriptor = is_default_constructible_v<T> && is_assignable_v<T &, T> &&
-    equality_comparable<T>;
-
-template <typename T>
-concept GraphConcept = T::is_graph_;
-
-template <typename T>
-concept DiGraphConcept = GraphConcept<T> && T::directed_;
+template <Descriptor V> struct Hash<EdgePair<V>> {
+  size_t operator()(const EdgePair<V> &e) const {
+    if constexpr (sizeof(V) == 4) {
+      return Hash<size_t>{}(bit_cast<uint32_t>(e.second) + Hash<V>{}(e.first));
+    } else {
+      return Hash<size_t>{}(bit_cast<size_t>(e.second) + Hash<V>{}(e.first));
+    }
+  }
+};
 
 template <typename Derived> struct VertexPropertyTag {
   Derived &derived() noexcept { return static_cast<Derived &>(*this); }
@@ -54,7 +57,7 @@ struct VertexDistanceTag : public VertexPropertyTag<VertexDistanceTag> {};
 
 VertexDistanceTag v_dist;
 
-template <Arithmetic DistanceType, Descriptor VertexType>
+template <typename DistanceType, Descriptor VertexType>
 struct VertexDistanceImpl {
 
   static constexpr bool int_vertex_ = is_integral_v<VertexType>;
@@ -85,7 +88,7 @@ struct VertexDistanceImpl {
       vertex_distances_;
 };
 
-template <Arithmetic DistanceType, Descriptor VertexType>
+template <typename DistanceType, Descriptor VertexType>
 DistanceType
 getVertexDistType(const VertexDistanceImpl<DistanceType, VertexType> &);
 
@@ -97,7 +100,7 @@ concept HasVertexDistanceProperty = requires(U u) {
 template <HasVertexDistanceProperty T>
 using VertexDistanceType = decltype(getVertexDistType(declval<T>()));
 
-template <Arithmetic DistanceType> struct VertexDistanceProperty {
+template <typename DistanceType> struct VertexDistanceProperty {
   template <Descriptor VertexType>
   using Impl = VertexDistanceImpl<DistanceType, VertexType>;
 };
@@ -154,7 +157,7 @@ struct EdgeWeightTag : public EdgePropertyTag<EdgeWeightTag> {};
 
 EdgeWeightTag e_w;
 
-template <Arithmetic WeightType, typename EdgeType> struct EdgeWeightImpl {
+template <typename WeightType, typename EdgeType> struct EdgeWeightImpl {
   WeightType &operator()(EdgeWeightTag, const EdgeType &edge) {
     return edge_weights_[edge];
   }
@@ -166,10 +169,10 @@ template <Arithmetic WeightType, typename EdgeType> struct EdgeWeightImpl {
 
   auto &&operator()(EdgeWeightTag) noexcept { return move(edge_weights_); }
 
-  map<EdgeType, WeightType> edge_weights_;
+  unordered_map<EdgeType, WeightType, Hash<EdgeType>> edge_weights_;
 };
 
-template <Arithmetic WeightType, typename EdgeType>
+template <typename WeightType, typename EdgeType>
 WeightType getEdgeWeightType(const EdgeWeightImpl<WeightType, EdgeType> &);
 
 template <typename U>
@@ -180,9 +183,9 @@ concept HasEdgeWeightProperty = requires(U u) {
 template <HasEdgeWeightProperty T>
 using EdgeWeightType = decltype(getEdgeWeightType(declval<T>()));
 
-template <Arithmetic WeightType> struct EdgeWeightProperty {
+template <typename WeightType> struct EdgeWeightProperty {
   template <Descriptor VertexType>
-  using Impl = EdgeWeightImpl<WeightType, pair<VertexType, VertexType>>;
+  using Impl = EdgeWeightImpl<WeightType, EdgePair<VertexType>>;
 };
 
 } // namespace frozenca

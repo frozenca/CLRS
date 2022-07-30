@@ -47,6 +47,31 @@ template <typename T>
 concept Containable = is_same_v<remove_cvref_t<T>, T>;
 
 template <typename T>
+concept Descriptor = is_default_constructible_v<T> && is_assignable_v<T &, T> &&
+    equality_comparable<T>;
+
+template <Descriptor Vertex> struct EdgePair {
+  Vertex first;
+  Vertex second;
+};
+
+template <Descriptor Vertex>
+bool operator==(const EdgePair<Vertex> &e1, const EdgePair<Vertex> &e2) {
+  return e1.first == e2.first && e1.second == e2.second;
+}
+
+template <Descriptor Vertex>
+bool operator!=(const EdgePair<Vertex> &e1, const EdgePair<Vertex> &e2) {
+  return !(e1 == e2);
+}
+
+template <typename T>
+concept GraphConcept = T::is_graph_;
+
+template <typename T>
+concept DiGraphConcept = GraphConcept<T> && T::directed_;
+
+template <typename T>
 concept DiskAllocable = is_same_v<remove_cvref_t<T>, T> &&
     is_trivially_copyable_v<T> &&(sizeof(T) % alignof(T) == 0);
 

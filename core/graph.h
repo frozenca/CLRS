@@ -88,6 +88,10 @@ public:
 
   const auto &vertices() const noexcept { return TraitBase::vertices(); }
 
+  [[nodiscard]] auto size() const noexcept {
+    return TraitBase::vertices().size();
+  }
+
   auto &&move_vertices() noexcept { return move(TraitBase::move_vertices()); }
 
   const auto &edges() const noexcept { return TraitBase::edges(); }
@@ -142,8 +146,7 @@ public:
   }
 
   template <typename Derived>
-  const auto &operator()(EdgePropertyTag<Derived> tag,
-                         edge_type edge) const {
+  const auto &operator()(EdgePropertyTag<Derived> tag, edge_type edge) const {
     if constexpr (!directed_) {
       if (edge.first > edge.second) {
         swap(edge.first, edge.second);
@@ -168,7 +171,7 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
                                       unordered_set<vertex_type>>;
   using vertex_iterator_type = vertices_type::iterator;
 
-  using edge_type = pair<vertex_type, vertex_type>;
+  using edge_type = EdgePair<Vertex>;
   using adj_list_type = list<edge_type>;
   using edges_type = list<adj_list_type>;
   using edge_iterator_type = adj_list_type::iterator;
@@ -284,7 +287,7 @@ struct TraversalProperty {
   using Impl = GraphProperties<VertexType, VertexVisitedProperty>;
 };
 
-template <Arithmetic DistType> struct TraversalWeightProperties {
+template <typename DistType> struct TraversalWeightProperties {
   template <Descriptor VertexType>
   using Impl = GraphProperties<VertexType, VertexVisitedProperty,
                                VertexDistanceProperty<DistType>,
@@ -295,7 +298,7 @@ template <Descriptor VertexType>
 using DiGraph =
     Graph<VertexType, DiGraphTraits<AdjListTraitTag>, TraversalProperty>;
 
-template <Descriptor VertexType, Arithmetic WeightType>
+template <Descriptor VertexType, typename WeightType>
 using WeightedDiGraph = Graph<VertexType, DiGraphTraits<AdjListTraitTag>,
                               TraversalWeightProperties<WeightType>>;
 
