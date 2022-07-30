@@ -11,11 +11,11 @@ namespace frozenca {
 
 using namespace std;
 
-template <Descriptor VertexType>
-bool topological_sort_helper(DiGraph<VertexType> &g,
-                             VertexProperty<VisitMark, VertexType> &visited,
-                             GraphProperty<list<VertexType>> &top_sort,
-                             const VertexType &vertex) {
+template <Descriptor V>
+bool topological_sort_helper(DiGraph<V> &g,
+                             VertexProperty<VisitMark, V> &visited,
+                             GraphProperty<list<V>> &top_sort,
+                             const V &vertex) {
   visited(vertex) = VisitMark::Visiting;
 
   for (const auto &[_, dst] : g.adj(vertex)) {
@@ -36,11 +36,11 @@ bool topological_sort_helper(DiGraph<VertexType> &g,
   return true;
 }
 
-template <Descriptor VertexType> void topological_sort(DiGraph<VertexType> &g) {
+template <Descriptor V> void topological_sort(DiGraph<V> &g) {
   auto &visited =
       g.add_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
   auto &top_sort =
-      g.add_graph_property<list<VertexType>>(GraphPropertyTag::GraphTopSort);
+      g.add_graph_property<list<V>>(GraphPropertyTag::GraphTopSort);
 
   for (const auto &vertex : g.vertices()) {
     if (visited(vertex) == VisitMark::Unvisited) {
@@ -49,30 +49,25 @@ template <Descriptor VertexType> void topological_sort(DiGraph<VertexType> &g) {
   }
 }
 
-template <Descriptor VertexType>
-void make_set(VertexProperty<VertexType, VertexType> &parent,
-              VertexProperty<int, VertexType> &rank,
-              VertexProperty<VertexType, VertexType> &link,
-              const VertexType &vertex) {
+template <Descriptor V>
+void make_set(VertexProperty<V, V> &parent, VertexProperty<int, V> &rank,
+              VertexProperty<V, V> &link, const V &vertex) {
   parent(vertex) = vertex;
   rank(vertex) = 0;
   link(vertex) = vertex;
 }
 
-template <Descriptor VertexType>
-VertexType find_set(UndirGraph<VertexType> &g,
-                    VertexProperty<VertexType, VertexType> &parent,
-                    const VertexType &v) {
+template <Descriptor V>
+V find_set(UndirGraph<V> &g, VertexProperty<V, V> &parent, const V &v) {
   if (parent(v) != v) {
     parent(v) = find_set(g, parent, parent(v));
   }
   return parent(v);
 }
 
-template <Descriptor VertexType>
-VertexType find_set_iterative(UndirGraph<VertexType> &g,
-                              VertexProperty<VertexType, VertexType> &parent,
-                              const VertexType &v) {
+template <Descriptor V>
+V find_set_iterative(UndirGraph<V> &g, VertexProperty<V, V> &parent,
+                     const V &v) {
   auto r = v;
   while (parent(v) != v) {
     r = parent(v);
@@ -86,13 +81,10 @@ VertexType find_set_iterative(UndirGraph<VertexType> &g,
   return r;
 }
 
-template <Descriptor VertexType>
-vector<VertexType> enumerate_set(UndirGraph<VertexType> &g,
-                                 const VertexType &v) {
-  const auto &link =
-      g.get_vertex_property<VertexType>(GraphPropertyTag::VertexLink);
+template <Descriptor V> vector<V> enumerate_set(UndirGraph<V> &g, const V &v) {
+  const auto &link = g.get_vertex_property<V>(GraphPropertyTag::VertexLink);
   auto r = v;
-  vector<VertexType> res;
+  vector<V> res;
   res.push_back(v);
   auto x = v;
   while (link(x) != r) {
@@ -102,12 +94,9 @@ vector<VertexType> enumerate_set(UndirGraph<VertexType> &g,
   return res;
 }
 
-template <Descriptor VertexType>
-void link_by_rank(VertexProperty<VertexType, VertexType> &parent,
-                  VertexProperty<int, VertexType> &rank,
-                  VertexProperty<VertexType, VertexType> &link,
-
-                  const VertexType &x, const VertexType &y) {
+template <Descriptor V>
+void link_by_rank(VertexProperty<V, V> &parent, VertexProperty<int, V> &rank,
+                  VertexProperty<V, V> &link, const V &x, const V &y) {
   auto temp = link(y);
   link(y) = link(x);
   link(x) = temp;
@@ -121,12 +110,10 @@ void link_by_rank(VertexProperty<VertexType, VertexType> &parent,
   }
 }
 
-template <Descriptor VertexType>
-void union_find_by_rank(UndirGraph<VertexType> &g) {
-  auto &parent =
-      g.add_vertex_property<VertexType>(GraphPropertyTag::VertexParent);
+template <Descriptor V> void union_find_by_rank(UndirGraph<V> &g) {
+  auto &parent = g.add_vertex_property<V>(GraphPropertyTag::VertexParent);
   auto &rank = g.add_vertex_property<int>(GraphPropertyTag::VertexRank);
-  auto &link = g.add_vertex_property<VertexType>(GraphPropertyTag::VertexLink);
+  auto &link = g.add_vertex_property<V>(GraphPropertyTag::VertexLink);
   for (const auto &vertex : g.vertices()) {
     make_set(parent, rank, link, vertex);
   }
@@ -140,11 +127,9 @@ void union_find_by_rank(UndirGraph<VertexType> &g) {
   }
 }
 
-template <Descriptor VertexType>
-void link_by_size(VertexProperty<VertexType, VertexType> &parent,
-                  VertexProperty<int, VertexType> &rank,
-                  VertexProperty<VertexType, VertexType> &link,
-                  const VertexType &x, const VertexType &y) {
+template <Descriptor V>
+void link_by_size(VertexProperty<V, V> &parent, VertexProperty<int, V> &rank,
+                  VertexProperty<V, V> &link, const V &x, const V &y) {
   auto temp = link(y);
   link(y) = link(x);
   link(x) = temp;
@@ -158,12 +143,10 @@ void link_by_size(VertexProperty<VertexType, VertexType> &parent,
   }
 }
 
-template <Descriptor VertexType>
-void union_find_by_size(UndirGraph<VertexType> &g) {
-  auto &parent =
-      g.add_vertex_property<VertexType>(GraphPropertyTag::VertexParent);
+template <Descriptor V> void union_find_by_size(UndirGraph<V> &g) {
+  auto &parent = g.add_vertex_property<V>(GraphPropertyTag::VertexParent);
   auto &rank = g.add_vertex_property<int>(GraphPropertyTag::VertexRank);
-  auto &link = g.add_vertex_property<VertexType>(GraphPropertyTag::VertexLink);
+  auto &link = g.add_vertex_property<V>(GraphPropertyTag::VertexLink);
   for (const auto &vertex : g.vertices()) {
     make_set(parent, rank, link, vertex);
   }
