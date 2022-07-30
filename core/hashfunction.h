@@ -15,7 +15,7 @@ inline constexpr size_t half_size = 8 * (sizeof(size_t) >> 1ULL);
 
 inline constexpr size_t hash_a_base = ((1ULL << half_size) + 1ULL) * 123ULL;
 
-template <size_t a, size_t r = 0> struct HashFunc {
+template <size_t a, size_t r = 1> struct HashFunc {
   static_assert(a & 1, "a must be an odd number\n");
 
   constexpr size_t halfswap(size_t x) const noexcept {

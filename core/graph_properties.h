@@ -1,7 +1,6 @@
 #ifndef __CLRS4_GRAPH_PROPERTIES_H__
 #define __CLRS4_GRAPH_PROPERTIES_H__
 
-#include <bit>
 #include <common.h>
 #include <concepts>
 #include <functional>
@@ -16,11 +15,7 @@ using namespace std;
 
 template <Descriptor V> struct Hash<EdgePair<V>> {
   size_t operator()(const EdgePair<V> &e) const {
-    if constexpr (sizeof(V) == 4) {
-      return Hash<size_t>{}(bit_cast<uint32_t>(e.second) + Hash<V>{}(e.first));
-    } else {
-      return Hash<size_t>{}(bit_cast<size_t>(e.second) + Hash<V>{}(e.first));
-    }
+    return Hash<V>{}(e.second) + 1234567ULL * Hash<V>{}(e.first);
   }
 };
 
