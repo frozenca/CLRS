@@ -11,12 +11,11 @@ namespace frozenca {
 
 using namespace std;
 
-template <DiGraphConcept DiGraphType>
-bool topological_sort_helper(
-    DiGraphType &g,
-    VertexProperty<VisitMark, typename DiGraphType::vertex_type> &visited,
-    GraphProperty<list<typename DiGraphType::vertex_type>> &top_sort,
-    const typename DiGraphType::vertex_type &vertex) {
+template <Descriptor VertexType>
+bool topological_sort_helper(DiGraph<VertexType> &g,
+                             VertexProperty<VisitMark, VertexType> &visited,
+                             GraphProperty<list<VertexType>> &top_sort,
+                             const VertexType &vertex) {
   visited(vertex) = VisitMark::Visiting;
 
   for (const auto &[_, dst] : g.adj(vertex)) {
@@ -37,13 +36,11 @@ bool topological_sort_helper(
   return true;
 }
 
-template <DiGraphConcept DiGraphType> void topological_sort(DiGraphType &g) {
-  using vertex_type = DiGraphType::vertex_type;
-
+template <Descriptor VertexType> void topological_sort(DiGraph<VertexType> &g) {
   auto &visited =
       g.add_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
   auto &top_sort =
-      g.add_graph_property<list<vertex_type>>(GraphPropertyTag::GraphTopSort);
+      g.add_graph_property<list<VertexType>>(GraphPropertyTag::GraphTopSort);
 
   for (const auto &vertex : g.vertices()) {
     if (visited(vertex) == VisitMark::Unvisited) {
@@ -52,113 +49,133 @@ template <DiGraphConcept DiGraphType> void topological_sort(DiGraphType &g) {
   }
 }
 
-/*
-
 template <Descriptor VertexType>
-VertexType find_set(UnionFindGraph<VertexType> &g, const VertexType &v) {
-  if (g(v_parent, v) != v) {
-    g(v_parent, v) = find_set(g, g(v_parent, v));
-  }
-  return g(v_parent, v);
+void make_set(VertexProperty<VertexType, VertexType> &parent,
+              VertexProperty<int, VertexType> &rank,
+              VertexProperty<VertexType, VertexType> &link,
+              const VertexType &vertex) {
+  parent(vertex) = vertex;
+  rank(vertex) = 0;
+  link(vertex) = vertex;
 }
 
 template <Descriptor VertexType>
-VertexType find_set_iterative(UnionFindGraph<VertexType> &g,
+VertexType find_set(UndirGraph<VertexType> &g,
+                    VertexProperty<VertexType, VertexType> &parent,
+                    const VertexType &v) {
+  if (parent(v) != v) {
+    parent(v) = find_set(g, parent, parent(v));
+  }
+  return parent(v);
+}
+
+template <Descriptor VertexType>
+VertexType find_set_iterative(UndirGraph<VertexType> &g,
+                              VertexProperty<VertexType, VertexType> &parent,
                               const VertexType &v) {
   auto r = v;
-  while (g(v_parent, v) != v) {
-    r = g(v_parent, v);
+  while (parent(v) != v) {
+    r = parent(v);
   }
   auto x = v;
-  while (g(v_parent, x) != r) {
-    auto parent = g(v_parent, x);
-    g(v_parent, x) = r;
+  while (parent(x) != r) {
+    auto parent = parent(x);
+    parent(x) = r;
     x = parent;
   }
   return r;
 }
 
 template <Descriptor VertexType>
-vector<VertexType> enumerate_set(UnionFindGraph<VertexType> &g,
+vector<VertexType> enumerate_set(UndirGraph<VertexType> &g,
                                  const VertexType &v) {
+  const auto &link =
+      g.get_vertex_property<VertexType>(GraphPropertyTag::VertexLink);
   auto r = v;
   vector<VertexType> res;
   res.push_back(v);
   auto x = v;
-  while (g(v_child, x) != r) {
-    x = g(v_child, x);
+  while (link(x) != r) {
+    x = link(x);
     res.push_back(x);
   }
   return res;
 }
 
 template <Descriptor VertexType>
-void link_by_rank(UnionFindGraph<VertexType> &g, const VertexType &x,
-                  const VertexType &y) {
-  auto temp = g(v_child, y);
-  g(v_child, y) = g(v_child, x);
-  g(v_child, x) = temp;
-  if (g(v_rank, x) > g(v_rank, y)) {
-    g(v_parent, y) = x;
+void link_by_rank(VertexProperty<VertexType, VertexType> &parent,
+                  VertexProperty<int, VertexType> &rank,
+                  VertexProperty<VertexType, VertexType> &link,
+
+                  const VertexType &x, const VertexType &y) {
+  auto temp = link(y);
+  link(y) = link(x);
+  link(x) = temp;
+  if (rank(x) > rank(y)) {
+    parent(y) = x;
   } else {
-    g(v_parent, x) = y;
-    if (g(v_rank, x) == g(v_rank, y)) {
-      g(v_rank, y) += 1;
+    parent(x) = y;
+    if (rank(x) == rank(y)) {
+      rank(y) += 1;
     }
   }
 }
 
 template <Descriptor VertexType>
-void union_find_by_rank(UnionFindGraph<VertexType> &g) {
+void union_find_by_rank(UndirGraph<VertexType> &g) {
+  auto &parent =
+      g.add_vertex_property<VertexType>(GraphPropertyTag::VertexParent);
+  auto &rank = g.add_vertex_property<int>(GraphPropertyTag::VertexRank);
+  auto &link = g.add_vertex_property<VertexType>(GraphPropertyTag::VertexLink);
   for (const auto &vertex : g.vertices()) {
-    g(v_parent, vertex) = vertex;
-    g(v_rank, vertex) = 0;
-    g(v_child, vertex) = vertex;
+    make_set(parent, rank, link, vertex);
   }
 
   for (const auto &v : g.vertices()) {
     for (const auto &[_, u] : g.adj(v)) {
-      link_by_rank(g, find_set(g, v), find_set(g, u));
+      auto vr = find_set(g, parent, v);
+      auto ur = find_set(g, parent, u);
+      link_by_rank(parent, rank, link, vr, ur);
     }
   }
 }
 
 template <Descriptor VertexType>
-void link_by_size(UnionFindGraph<VertexType> &g, const VertexType &x,
-                  const VertexType &y) {
-  auto temp = g(v_child, y);
-  g(v_child, y) = g(v_child, x);
-  g(v_child, x) = temp;
-  if (g(v_rank, x) > g(v_rank, y)) {
-    g(v_parent, y) = x;
+void link_by_size(VertexProperty<VertexType, VertexType> &parent,
+                  VertexProperty<int, VertexType> &rank,
+                  VertexProperty<VertexType, VertexType> &link,
+                  const VertexType &x, const VertexType &y) {
+  auto temp = link(y);
+  link(y) = link(x);
+  link(x) = temp;
+  if (rank(x) > rank(y)) {
+    parent(y) = x;
   } else {
-    g(v_parent, x) = y;
-    if (g(v_rank, x) == g(v_rank, y)) {
-      g(v_rank, y) += g(v_rank, x);
+    parent(x) = y;
+    if (rank(x) == rank(y)) {
+      rank(y) += rank(x);
     }
   }
 }
 
 template <Descriptor VertexType>
-void make_set(UnionFindGraph<VertexType> &g, const VertexType& vertex) {
-  g(v_parent, vertex) = vertex;
-  g(v_rank, vertex) = 0;
-  g(v_child, vertex) = vertex;
-}
-
-template <Descriptor VertexType>
-void union_find_by_size(UnionFindGraph<VertexType> &g) {
+void union_find_by_size(UndirGraph<VertexType> &g) {
+  auto &parent =
+      g.add_vertex_property<VertexType>(GraphPropertyTag::VertexParent);
+  auto &rank = g.add_vertex_property<int>(GraphPropertyTag::VertexRank);
+  auto &link = g.add_vertex_property<VertexType>(GraphPropertyTag::VertexLink);
   for (const auto &vertex : g.vertices()) {
-    make_set(g, vertex);
+    make_set(parent, rank, link, vertex);
   }
 
   for (const auto &v : g.vertices()) {
     for (const auto &[_, u] : g.adj(v)) {
-      link_by_size(g, find_set(g, v), find_set(g, u));
+      auto vr = find_set(g, parent, v);
+      auto ur = find_set(g, parent, u);
+      link_by_size(parent, rank, link, vr, ur);
     }
   }
 }
-*/
 
 } // namespace frozenca
 

@@ -3,12 +3,11 @@
 #include <iostream>
 #include <vector>
 
-
 int main() {
   namespace fc = frozenca;
   using namespace std;
 
-  fc::UnionFindGraph<int> g;
+  fc::UndirGraph<int> g;
 
   g.add_edge(1, 3);
   g.add_edge(4, 5);
