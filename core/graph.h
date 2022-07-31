@@ -58,18 +58,18 @@ public:
   }
 
   template <typename PropertyType>
-  VertexProperty<PropertyType, vertex_type> &
+  VertexProperty<vertex_type, PropertyType> &
   add_vertex_property(const GraphPropertyTag &tag) {
     properties_.emplace(
-        tag, make_unique<VertexProperty<PropertyType, vertex_type>>());
+        tag, make_unique<VertexProperty<vertex_type, PropertyType>>());
     return get_vertex_property<PropertyType>(tag);
   }
 
   template <typename PropertyType>
-  EdgeProperty<PropertyType, edge_type> &
+  EdgeProperty<vertex_type, PropertyType> &
   add_edge_property(const GraphPropertyTag &tag) {
     properties_.emplace(tag,
-                        make_unique<EdgeProperty<PropertyType, edge_type>>());
+                        make_unique<EdgeProperty<vertex_type, PropertyType>>());
     return get_edge_property<PropertyType>(tag);
   }
 
@@ -80,30 +80,30 @@ public:
   }
 
   template <typename PropertyType>
-  VertexProperty<PropertyType, vertex_type> &
+  VertexProperty<vertex_type, PropertyType> &
   get_vertex_property(const GraphPropertyTag &tag) {
-    return dynamic_cast<VertexProperty<PropertyType, vertex_type> &>(
+    return dynamic_cast<VertexProperty<vertex_type, PropertyType> &>(
         *properties_.at(tag));
   }
 
   template <typename PropertyType>
-  const VertexProperty<PropertyType, vertex_type> &
+  const VertexProperty<vertex_type, PropertyType> &
   get_vertex_property(const GraphPropertyTag &tag) const {
-    return dynamic_cast<const VertexProperty<PropertyType, vertex_type> &>(
+    return dynamic_cast<const VertexProperty<vertex_type, PropertyType> &>(
         *properties_.at(tag));
   }
 
   template <typename PropertyType>
-  EdgeProperty<PropertyType, edge_type> &
+  EdgeProperty<vertex_type, PropertyType> &
   get_edge_property(const GraphPropertyTag &tag) {
-    return dynamic_cast<EdgeProperty<PropertyType, edge_type> &>(
+    return dynamic_cast<EdgeProperty<vertex_type, PropertyType> &>(
         *properties_.at(tag));
   }
 
   template <typename PropertyType>
-  const EdgeProperty<PropertyType, edge_type> &
+  const EdgeProperty<vertex_type, PropertyType> &
   get_edge_property(const GraphPropertyTag &tag) const {
-    return dynamic_cast<const EdgeProperty<PropertyType, edge_type> &>(
+    return dynamic_cast<const EdgeProperty<vertex_type, PropertyType> &>(
         *properties_.at(tag));
   }
 

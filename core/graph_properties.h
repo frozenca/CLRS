@@ -43,12 +43,12 @@ struct Property {
 
 enum class VisitMark { Unvisited, Visiting, Visited };
 
-template <typename PropertyType, Descriptor VertexType>
+template <Descriptor VertexType, typename PropertyType>
 struct VertexProperty final : public Property {
 
   static constexpr bool int_vertex_ = is_integral_v<VertexType>;
 
-  PropertyType &operator()(const VertexType &vertex) {
+  PropertyType &operator[](const VertexType &vertex) {
     if constexpr (int_vertex_) {
       if (vertex >= ssize(vertex_properties_)) {
         vertex_properties_.resize(vertex + 1);
@@ -56,7 +56,7 @@ struct VertexProperty final : public Property {
     }
     return vertex_properties_[vertex];
   }
-  const PropertyType &operator()(const VertexType &vertex) const {
+  const PropertyType &operator[](const VertexType &vertex) const {
     return vertex_properties_.at(vertex);
   }
 
@@ -66,12 +66,13 @@ private:
       vertex_properties_;
 };
 
-template <typename PropertyType, typename EdgeType>
+template <Descriptor VertexType, typename PropertyType>
 struct EdgeProperty final : public Property {
-  PropertyType &operator()(const EdgeType &edge) {
+  using EdgeType = EdgePair<VertexType>;
+  PropertyType &operator[](const EdgeType &edge) {
     return edge_properties_[edge];
   }
-  const PropertyType &operator()(const EdgeType &edge) const {
+  const PropertyType &operator[](const EdgeType &edge) const {
     return edge_properties_.at(edge);
   }
 

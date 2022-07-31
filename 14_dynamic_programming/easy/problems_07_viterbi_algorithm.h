@@ -23,14 +23,14 @@ using SoundGraph = DiGraph<int>;
 using SequenceIter = vector<string_view>::const_iterator;
 
 bool viterbi_get_path(DiGraph<int> &g,
-                      const EdgeProperty<Sound, EdgePair<int>> &sound,
+                      const EdgeProperty<int, Sound> &sound,
                       SequenceIter s_first, SequenceIter s_last, int curr_index,
                       GraphProperty<vector<int>> &succ) {
   if (s_first == s_last) {
     return true;
   }
   for (const auto &[_, next_index] : g.adj(curr_index)) {
-    const auto &curr_sound = sound({curr_index, next_index});
+    const auto &curr_sound = sound[{curr_index, next_index}];
     if (curr_sound.sound_ == *s_first) {
       auto res =
           viterbi_get_path(g, sound, next(s_first), s_last, next_index, succ);
@@ -64,7 +64,7 @@ vector<int> viterbi_path(DiGraph<int> &g, int src,
 }
 
 float viterbi_get_optimal_path(DiGraph<int> &g,
-                               const EdgeProperty<Sound, EdgePair<int>> &sound,
+                               const EdgeProperty<int, Sound> &sound,
                                SequenceIter s_first, SequenceIter s_last,
                                int curr_index) {
   if (s_first == s_last) {
@@ -75,7 +75,7 @@ float viterbi_get_optimal_path(DiGraph<int> &g,
   vector<int> seq;
   float prob = 0.0f;
   for (const auto &[_, next_index] : g.adj(curr_index)) {
-    const auto &curr_sound = sound({curr_index, next_index});
+    const auto &curr_sound = sound[{curr_index, next_index}];
     if (curr_sound.sound_ == *s_first) {
       auto res_prob =
           viterbi_get_optimal_path(g, sound, next(s_first), s_last, next_index);

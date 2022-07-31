@@ -13,13 +13,13 @@ using namespace std;
 
 template <Descriptor V>
 bool topological_sort_helper(DiGraph<V> &g,
-                             VertexProperty<VisitMark, V> &visited,
+                             VertexProperty<V, VisitMark> &visited,
                              GraphProperty<list<V>> &top_sort,
                              const V &vertex) {
-  visited(vertex) = VisitMark::Visiting;
+  visited[vertex] = VisitMark::Visiting;
 
   for (const auto &[_, dst] : g.adj(vertex)) {
-    auto status = visited(dst);
+    auto status = visited[dst];
     if (status == VisitMark::Unvisited) {
       if (!topological_sort_helper(g, visited, top_sort, dst)) {
         top_sort().clear();
@@ -31,7 +31,7 @@ bool topological_sort_helper(DiGraph<V> &g,
       return false;
     }
   }
-  visited(vertex) = VisitMark::Visited;
+  visited[vertex] = VisitMark::Visited;
   top_sort().push_back(vertex);
   return true;
 }
@@ -43,37 +43,37 @@ template <Descriptor V> void topological_sort(DiGraph<V> &g) {
       g.add_graph_property<list<V>>(GraphPropertyTag::GraphTopSort);
 
   for (const auto &vertex : g.vertices()) {
-    if (visited(vertex) == VisitMark::Unvisited) {
+    if (visited[vertex] == VisitMark::Unvisited) {
       topological_sort_helper(g, visited, top_sort, vertex);
     }
   }
 }
 
 template <Descriptor V>
-void make_set(VertexProperty<V, V> &parent, VertexProperty<int, V> &rank,
+void make_set(VertexProperty<V, V> &parent, VertexProperty<V, int> &rank,
               VertexProperty<V, V> &link, const V &vertex) {
-  parent(vertex) = vertex;
-  rank(vertex) = 0;
-  link(vertex) = vertex;
+  parent[vertex] = vertex;
+  rank[vertex] = 0;
+  link[vertex] = vertex;
 }
 
 template <Descriptor V> V find_set(VertexProperty<V, V> &parent, const V &v) {
-  if (parent(v) != v) {
-    parent(v) = find_set(parent, parent(v));
+  if (parent[v] != v) {
+    parent[v] = find_set(parent, parent[v]);
   }
-  return parent(v);
+  return parent[v];
 }
 
 template <Descriptor V>
 V find_set_iterative(VertexProperty<V, V> &parent, const V &v) {
   auto r = v;
-  while (parent(v) != v) {
-    r = parent(v);
+  while (parent[v] != v) {
+    r = parent[v];
   }
   auto x = v;
-  while (parent(x) != r) {
-    auto parent = parent(x);
-    parent(x) = r;
+  while (parent[x] != r) {
+    auto parent = parent[x];
+    parent[x] = r;
     x = parent;
   }
   return r;
@@ -85,25 +85,25 @@ template <Descriptor V> vector<V> enumerate_set(UndirGraph<V> &g, const V &v) {
   vector<V> res;
   res.push_back(v);
   auto x = v;
-  while (link(x) != r) {
-    x = link(x);
+  while (link[x] != r) {
+    x = link[x];
     res.push_back(x);
   }
   return res;
 }
 
 template <Descriptor V>
-void link_by_rank(VertexProperty<V, V> &parent, VertexProperty<int, V> &rank,
+void link_by_rank(VertexProperty<V, V> &parent, VertexProperty<V, int> &rank,
                   VertexProperty<V, V> &link, const V &x, const V &y) {
-  auto temp = link(y);
-  link(y) = link(x);
-  link(x) = temp;
-  if (rank(x) > rank(y)) {
-    parent(y) = x;
+  auto temp = link[y];
+  link[y] = link[x];
+  link[x] = temp;
+  if (rank[x] > rank[y]) {
+    parent[y] = x;
   } else {
-    parent(x) = y;
-    if (rank(x) == rank(y)) {
-      rank(y) += 1;
+    parent[x] = y;
+    if (rank[x] == rank[y]) {
+      rank[y] += 1;
     }
   }
 }
@@ -126,17 +126,17 @@ template <Descriptor V> void union_find_by_rank(UndirGraph<V> &g) {
 }
 
 template <Descriptor V>
-void link_by_size(VertexProperty<V, V> &parent, VertexProperty<int, V> &rank,
+void link_by_size(VertexProperty<V, V> &parent, VertexProperty<V, int> &rank,
                   VertexProperty<V, V> &link, const V &x, const V &y) {
-  auto temp = link(y);
-  link(y) = link(x);
-  link(x) = temp;
-  if (rank(x) > rank(y)) {
-    parent(y) = x;
+  auto temp = link[y];
+  link[y] = link[x];
+  link[x] = temp;
+  if (rank[x] > rank[y]) {
+    parent[y] = x;
   } else {
-    parent(x) = y;
-    if (rank(x) == rank(y)) {
-      rank(y) += rank(x);
+    parent[x] = y;
+    if (rank[x] == rank[y]) {
+      rank[y] += rank[x];
     }
   }
 }

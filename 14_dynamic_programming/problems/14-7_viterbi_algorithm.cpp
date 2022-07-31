@@ -40,16 +40,16 @@ int main() {
       swap(src, dst);
     }
     g.add_edge(src, dst);
-    sound({src, dst}) = {generate_random_abcde_string(), trans_prob_dist(gen)};
+    sound[{src, dst}] = {generate_random_abcde_string(), trans_prob_dist(gen)};
   }
   // normalize transition probs
   for (int i = 0; i < g.size(); ++i) {
     float prob_sum = 0.0f;
     for (const auto &e : g.adj(i)) {
-      prob_sum += sound(e).prob_;
+      prob_sum += sound[e].prob_;
     }
     for (auto &e : g.adj(i)) {
-      sound(e).prob_ /= prob_sum;
+      sound[e].prob_ /= prob_sum;
     }
   }
 
@@ -59,7 +59,7 @@ int main() {
     int curr = 0;
     while (!g.adj(curr).empty()) {
       const auto &next_edge = *g.adj(curr).begin();
-      target_sound_sequence.emplace_back(sound(next_edge).sound_);
+      target_sound_sequence.emplace_back(sound[next_edge].sound_);
       curr = next_edge.second;
     }
   }
@@ -76,7 +76,7 @@ int main() {
     assert(!path.empty());
     float prob = 1.0f;
     for (int i = 0; i < ssize(path) - 1; ++i) {
-      const auto &curr_sound = sound({path[i], path[i + 1]});
+      const auto &curr_sound = sound[{path[i], path[i + 1]}];
       cout << path[i] << "->" << path[i + 1] << '(' << curr_sound.sound_
            << ")\n";
       prob *= curr_sound.prob_;
@@ -89,7 +89,7 @@ int main() {
     auto [path, prob] = fc::viterbi_optimal_path(g, 0, target_sound_sequence);
     assert(!path.empty());
     for (int i = 0; i < ssize(path) - 1; ++i) {
-      const auto &curr_sound = sound({path[i], path[i + 1]});
+      const auto &curr_sound = sound[{path[i], path[i + 1]}];
       cout << path[i] << "->" << path[i + 1] << '(' << curr_sound.sound_
            << ")\n";
     }
