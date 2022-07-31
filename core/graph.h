@@ -125,9 +125,7 @@ private:
 
 template <Descriptor Vertex, typename Derived> struct AdjListTraits {
   using vertex_type = Vertex;
-  static constexpr bool int_vertex_ = is_integral_v<vertex_type>;
-  using vertices_type = conditional_t<int_vertex_, vector<vertex_type>,
-                                      unordered_set<vertex_type>>;
+  using vertices_type = unordered_set<vertex_type>;
   using vertex_iterator_type = vertices_type::iterator;
 
   using edge_type = EdgePair<Vertex>;
@@ -149,19 +147,7 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
   const auto &out_edges() const noexcept { return out_edges_; }
 
   void add_vertex(const vertex_type &vertex) {
-    if constexpr (int_vertex_) {
-      if (vertex < 0) {
-        throw invalid_argument("Negative integer vertex");
-      }
-      auto curr_size = ssize(vertices_);
-      if (vertex >= curr_size) {
-        vertices_.resize(vertex + 1);
-        iota(vertices_.begin() + curr_size, vertices_.end(),
-             static_cast<vertex_type>(curr_size));
-      }
-    } else {
-      vertices_.insert(vertex);
-    }
+    vertices_.insert(vertex);
     if (!out_edges_.contains(vertex)) {
       edges_.emplace_front();
       out_edges_.emplace(vertex, edges_.begin());
@@ -169,11 +155,7 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
   }
 
   bool has_vertex(const vertex_type &vertex) const {
-    if constexpr (int_vertex_) {
-      return vertex >= 0 && vertex < ssize(vertices_);
-    } else {
-      vertices_.contains(vertex);
-    }
+    vertices_.contains(vertex);
   }
 
   ranges::subrange<edge_iterator_type, edge_iterator_type>
