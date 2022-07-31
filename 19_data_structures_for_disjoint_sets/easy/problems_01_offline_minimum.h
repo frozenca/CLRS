@@ -34,7 +34,6 @@ vector<int> offline_minimum(const vector<int> &v, int m, int n) {
   union_find_by_size(g);
 
   auto &parent = g.get_vertex_property<int>(GraphPropertyTag::VertexParent);
-  auto &link = g.get_vertex_property<int>(GraphPropertyTag::VertexLink);
 
   vector<int> extracted(m);
 
@@ -50,7 +49,7 @@ vector<int> offline_minimum(const vector<int> &v, int m, int n) {
         if (color_repr[k] != INF) {
           auto vr = find_set(parent, color_repr[k]);
           auto ur = find_set(parent, color_repr[j]);
-          link_by_rank(parent, color, link, vr, ur);
+          link_by_rank(parent, color, vr, ur);
           color_repr[j] = -1;
         } else {
           auto ur = find_set(parent, color_repr[j]);

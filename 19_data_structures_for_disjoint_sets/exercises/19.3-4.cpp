@@ -18,7 +18,7 @@ int main() {
   g.add_edge(1, 2);
   g.add_vertex(9);
 
-  fc::union_find_by_size(g);
+  fc::union_find_with_link(g);
 
   for (auto v : g.vertices()) {
     auto vec = fc::enumerate_set(g, v);
