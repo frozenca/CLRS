@@ -23,6 +23,7 @@ enum class GraphPropertyTag : int32_t {
   VertexDistance,
   VertexVisited,
   VertexRank,
+  VertexDepth,
   VertexSize,
   VertexParent,
   VertexLink,

@@ -21,7 +21,6 @@ vector<int> offline_minimum(const vector<int> &v, int m, int n) {
   vector<int> color_repr(m + 1, INF);
   for (auto num : v) {
     if (num != -1) {
-      g.add_vertex(num);
       color[num] = index;
       color_repr[index] = num;
       if (prev != -1) {
