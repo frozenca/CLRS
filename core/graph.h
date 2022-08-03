@@ -129,7 +129,7 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
   using vertex_iterator_type = vertices_type::iterator;
 
   using edge_type = EdgePair<Vertex>;
-  using adj_list_type = list<edge_type>;
+  using adj_list_type = list<vertex_type>;
   using edges_type = list<adj_list_type>;
   using edge_iterator_type = adj_list_type::iterator;
   using const_edge_iterator_type = adj_list_type::const_iterator;
@@ -170,11 +170,11 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
 
   bool has_edge(const edge_type &edge) const {
     auto edge_range = adj(edge.first);
-    return ranges::find(edge_range, edge) != edge_range.end();
+    return ranges::find(edge_range, edge.second) != edge_range.end();
   }
 
   void add_edge(const vertex_type &src, const vertex_type &dst) {
-    out_edges_[src]->emplace_front(src, dst);
+    out_edges_[src]->emplace_front(dst);
   }
 };
 

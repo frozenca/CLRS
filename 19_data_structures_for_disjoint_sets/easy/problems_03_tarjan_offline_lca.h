@@ -26,7 +26,7 @@ void offline_lca_impl(DiGraph<V> &g, VertexProperty<V, V> &parent,
                       VertexProperty<V, VisitMark> &visited, const V &u,
                       const V &v) {
   make_set_with_link(parent, set_rank, link, u);
-  for (const auto &[_, other] : g.adj(u)) {
+  for (const auto &other : g.adj(u)) {
     offline_lca_impl(g, parent, set_rank, link, visited, other, v);
     link_by_size(parent, set_rank, u, other);
     link[find_set(parent, u)] = u;

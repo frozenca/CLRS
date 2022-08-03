@@ -18,21 +18,21 @@ bool topological_sort_helper(DiGraph<V> &g,
                              const V &vertex) {
   visited[vertex] = VisitMark::Visiting;
 
-  for (const auto &[_, dst] : g.adj(vertex)) {
+  for (const auto &dst : g.adj(vertex)) {
     auto status = visited[dst];
     if (status == VisitMark::Unvisited) {
       if (!topological_sort_helper(g, visited, top_sort, dst)) {
-        top_sort().clear();
+        top_sort.get().clear();
         return false;
       }
     } else if (status == VisitMark::Visiting) {
       cerr << "Not a DAG, can't topological sort\n";
-      top_sort().clear();
+      top_sort.get().clear();
       return false;
     }
   }
   visited[vertex] = VisitMark::Visited;
-  top_sort().push_back(vertex);
+  top_sort.get().push_back(vertex);
   return true;
 }
 
@@ -51,7 +51,15 @@ template <Descriptor V> void topological_sort(DiGraph<V> &g) {
 
 template <Descriptor V>
 void make_set(VertexProperty<V, V> &parent, VertexProperty<V, int> &set_rank,
-              VertexProperty<V, V> &link, const V &vertex) {
+              const V &vertex) {
+  parent[vertex] = vertex;
+  set_rank[vertex] = 0;
+}
+
+template <Descriptor V>
+void make_set_with_link(VertexProperty<V, V> &parent,
+                        VertexProperty<V, int> &set_rank,
+                        VertexProperty<V, V> &link, const V &vertex) {
   parent[vertex] = vertex;
   set_rank[vertex] = 0;
   link[vertex] = vertex;
@@ -97,15 +105,15 @@ auto enumerate_set(const GraphType &g,
 
 template <Descriptor V>
 void link_by_rank(VertexProperty<V, V> &parent,
-                  VertexProperty<V, int> &set_rank,
-                  VertexProperty<V, V> &link, const V &x, const V &y) {
-  swap(link[x], link[y]);
-  if (set_rank[x] > set_rank[y]) {
-    parent[y] = x;
+                  VertexProperty<V, int> &set_rank, const V &x, const V &y) {
+  auto xr = find_set(parent, x);
+  auto yr = find_set(parent, y);
+  if (set_rank[xr] > set_rank[yr]) {
+    parent[yr] = xr;
   } else {
-    parent[x] = y;
-    if (set_rank[x] == set_rank[y]) {
-      set_rank[y] += 1;
+    parent[xr] = yr;
+    if (set_rank[xr] == set_rank[yr]) {
+      set_rank[yr] += 1;
     }
   }
 }
@@ -114,31 +122,46 @@ template <GraphConcept GraphType> void union_find_by_rank(GraphType &g) {
   using V = GraphType::vertex_type;
   auto &parent = g.add_vertex_property<V>(GraphPropertyTag::VertexParent);
   auto &set_rank = g.add_vertex_property<int>(GraphPropertyTag::VertexRank);
-  auto &link = g.add_vertex_property<V>(GraphPropertyTag::VertexLink);
   for (const auto &vertex : g.vertices()) {
-    make_set(parent, set_rank, link, vertex);
+    make_set(parent, set_rank, vertex);
   }
 
   for (const auto &v : g.vertices()) {
-    for (const auto &[_, u] : g.adj(v)) {
-      auto vr = find_set(parent, v);
-      auto ur = find_set(parent, u);
-      link_by_rank(parent, set_rank, link, vr, ur);
+    for (const auto &u : g.adj(v)) {
+      link_by_rank(parent, set_rank, v, u);
     }
   }
 }
 
 template <Descriptor V>
 void link_by_size(VertexProperty<V, V> &parent,
-                  VertexProperty<V, int> &set_rank,
-                  VertexProperty<V, V> &link, const V &x, const V &y) {
-  swap(link[x], link[y]);
-  if (set_rank[x] > set_rank[y]) {
-    parent[y] = x;
+                  VertexProperty<V, int> &set_rank, const V &x, const V &y) {
+  auto xr = find_set(parent, x);
+  auto yr = find_set(parent, y);
+  if (set_rank[xr] > set_rank[yr]) {
+    parent[yr] = xr;
   } else {
-    parent[x] = y;
-    if (set_rank[x] == set_rank[y]) {
-      set_rank[y] += set_rank[x];
+    parent[xr] = yr;
+    if (set_rank[xr] == set_rank[yr]) {
+      set_rank[yr] += set_rank[xr];
+    }
+  }
+}
+
+template <Descriptor V>
+void link_by_size_with_link(VertexProperty<V, V> &parent,
+                            VertexProperty<V, int> &set_rank,
+                            VertexProperty<V, V> &link, const V &x,
+                            const V &y) {
+  auto xr = find_set(parent, x);
+  auto yr = find_set(parent, y);
+  swap(link[xr], link[yr]);
+  if (set_rank[xr] > set_rank[yr]) {
+    parent[yr] = xr;
+  } else {
+    parent[xr] = yr;
+    if (set_rank[xr] == set_rank[yr]) {
+      set_rank[yr] += set_rank[xr];
     }
   }
 }
@@ -147,16 +170,29 @@ template <GraphConcept GraphType> void union_find_by_size(GraphType &g) {
   using V = GraphType::vertex_type;
   auto &parent = g.add_vertex_property<V>(GraphPropertyTag::VertexParent);
   auto &set_rank = g.add_vertex_property<int>(GraphPropertyTag::VertexRank);
-  auto &link = g.add_vertex_property<V>(GraphPropertyTag::VertexLink);
   for (const auto &vertex : g.vertices()) {
-    make_set(parent, set_rank, link, vertex);
+    make_set(parent, set_rank, vertex);
   }
 
   for (const auto &v : g.vertices()) {
-    for (const auto &[_, u] : g.adj(v)) {
-      auto vr = find_set(parent, v);
-      auto ur = find_set(parent, u);
-      link_by_size(parent, set_rank, link, vr, ur);
+    for (const auto &u : g.adj(v)) {
+      link_by_size(parent, set_rank, v, u);
+    }
+  }
+}
+
+template <GraphConcept GraphType> void union_find_with_link(GraphType &g) {
+  using V = GraphType::vertex_type;
+  auto &parent = g.add_vertex_property<V>(GraphPropertyTag::VertexParent);
+  auto &set_rank = g.add_vertex_property<int>(GraphPropertyTag::VertexRank);
+  auto &link = g.add_vertex_property<V>(GraphPropertyTag::VertexLink);
+  for (const auto &vertex : g.vertices()) {
+    make_set_with_link(parent, set_rank, link, vertex);
+  }
+
+  for (const auto &v : g.vertices()) {
+    for (const auto &u : g.adj(v)) {
+      link_by_size_with_link(parent, set_rank, link, v, u);
     }
   }
 }

@@ -46,10 +46,10 @@ int main() {
   for (int i = 0; i < g.size(); ++i) {
     float prob_sum = 0.0f;
     for (const auto &e : g.adj(i)) {
-      prob_sum += sound[e].prob_;
+      prob_sum += sound[{i, e}].prob_;
     }
-    for (auto &e : g.adj(i)) {
-      sound[e].prob_ /= prob_sum;
+    for (const auto &e : g.adj(i)) {
+      sound[{i, e}].prob_ /= prob_sum;
     }
   }
 
@@ -58,9 +58,9 @@ int main() {
   {
     int curr = 0;
     while (!g.adj(curr).empty()) {
-      const auto &next_edge = *g.adj(curr).begin();
-      target_sound_sequence.emplace_back(sound[next_edge].sound_);
-      curr = next_edge.second;
+      const auto &next_v = *g.adj(curr).begin();
+      target_sound_sequence.emplace_back(sound[{curr, next_v}].sound_);
+      curr = next_v;
     }
   }
 

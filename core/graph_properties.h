@@ -83,9 +83,9 @@ private:
 };
 
 template <typename PropertyType> struct GraphProperty final : public Property {
-  PropertyType &operator()() { return graph_property_; }
+  PropertyType & get() { return graph_property_; }
 
-  const PropertyType &operator()() const { return graph_property_; }
+  const PropertyType & get() const { return graph_property_; }
 
 private:
   PropertyType graph_property_;

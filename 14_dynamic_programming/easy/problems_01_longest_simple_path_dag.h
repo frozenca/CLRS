@@ -26,14 +26,14 @@ float longest_simple_path_dag(DiGraph<V> &g, const V &src, const V &dst) {
   topological_sort(g);
 
   auto top_sort =
-      g.get_graph_property<list<V>>(GraphPropertyTag::GraphTopSort)();
+      g.get_graph_property<list<V>>(GraphPropertyTag::GraphTopSort).get();
 
   while (!top_sort.empty()) {
     auto curr = top_sort.back();
     top_sort.pop_back();
 
     if (dist(curr) != MINF) {
-      for (auto [_, next] : g.adj(curr)) {
+      for (const auto &next : g.adj(curr)) {
         auto alt = dist(curr) + weight({curr, next});
         if (alt > dist(next)) {
           dist(next) = alt;
