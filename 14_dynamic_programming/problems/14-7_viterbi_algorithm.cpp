@@ -25,7 +25,7 @@ string generate_random_abcde_string() {
 }
 
 int main() {
-  fc::DiGraph<int> g;
+  fc::DirGraph<int> g;
   mt19937 gen(random_device{}());
   uniform_int_distribution<int> index_dist(0, 50);
   uniform_real_distribution<float> trans_prob_dist(0.0f, 1.0f);

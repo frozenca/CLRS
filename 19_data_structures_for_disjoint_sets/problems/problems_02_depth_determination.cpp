@@ -7,7 +7,7 @@ int main() {
   namespace fc = frozenca;
   using namespace std;
 
-  fc::DiGraph<int> g;
+  fc::DirGraph<int> g;
   auto &parent = g.add_vertex_property<int>(fc::GraphPropertyTag::VertexParent);
   auto &depth = g.add_vertex_property<int>(fc::GraphPropertyTag::VertexDepth);
 

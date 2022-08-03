@@ -7,7 +7,7 @@ int main() {
   namespace fc = frozenca;
   using namespace std;
 
-  fc::DiGraph<int> g;
+  fc::DirGraph<int> g;
   g.add_edge(0, 1);
   g.add_edge(0, 2);
   g.add_edge(0, 3);

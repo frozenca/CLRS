@@ -10,7 +10,7 @@ namespace frozenca {
 using namespace std;
 
 template <Descriptor V>
-void offline_lca(DiGraph<V> &g, const V &u, const V &v) {
+void offline_lca(DirGraph<V> &g, const V &u, const V &v) {
   auto &parent = g.add_vertex_property<V>(GraphPropertyTag::VertexParent);
   auto &set_rank = g.add_vertex_property<int>(GraphPropertyTag::VertexRank);
   auto &link = g.add_vertex_property<V>(GraphPropertyTag::VertexLink);
@@ -20,7 +20,7 @@ void offline_lca(DiGraph<V> &g, const V &u, const V &v) {
 }
 
 template <Descriptor V>
-void offline_lca_impl(DiGraph<V> &g, VertexProperty<V, V> &parent,
+void offline_lca_impl(DirGraph<V> &g, VertexProperty<V, V> &parent,
                       VertexProperty<V, int> &set_rank,
                       VertexProperty<V, V> &link,
                       VertexProperty<V, VisitMark> &visited, const V &u,

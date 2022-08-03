@@ -12,7 +12,7 @@ namespace frozenca {
 using namespace std;
 
 template <Descriptor V>
-bool topological_sort_helper(DiGraph<V> &g,
+bool topological_sort_helper(DirGraph<V> &g,
                              VertexProperty<V, VisitMark> &visited,
                              GraphProperty<list<V>> &top_sort,
                              const V &vertex) {
@@ -36,7 +36,7 @@ bool topological_sort_helper(DiGraph<V> &g,
   return true;
 }
 
-template <Descriptor V> void topological_sort(DiGraph<V> &g) {
+template <Descriptor V> void topological_sort(DirGraph<V> &g) {
   auto &visited =
       g.add_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
   auto &top_sort =

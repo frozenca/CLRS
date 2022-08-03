@@ -35,25 +35,29 @@ public:
     TraitBase::add_edge(src, dst);
   }
 
-  auto adj(const vertex_type &src) { return TraitBase::adj(src); }
+  [[nodiscard]] auto adj(const vertex_type &src) { return TraitBase::adj(src); }
 
-  auto adj(const vertex_type &src) const { return TraitBase::adj(src); }
+  [[nodiscard]] auto adj(const vertex_type &src) const {
+    return TraitBase::adj(src);
+  }
 
-  const auto &vertices() const noexcept { return TraitBase::vertices(); }
+  [[nodiscard]] const auto &vertices() const noexcept {
+    return TraitBase::vertices();
+  }
 
   [[nodiscard]] auto size() const noexcept {
     return TraitBase::vertices().size();
   }
 
-  const auto &edges() const noexcept { return TraitBase::edges(); }
+  [[nodiscard]] const auto &edges() const noexcept {
+    return TraitBase::edges();
+  }
 
-  const auto &out_edges() const noexcept { return TraitBase::out_edges(); }
-
-  bool has_vertex(const vertex_type &src) const noexcept {
+  [[nodiscard]] bool has_vertex(const vertex_type &src) const noexcept {
     return TraitBase::has_vertex(src);
   }
 
-  bool has_edge(const edge_type &edge) const noexcept {
+  [[nodiscard]] bool has_edge(const edge_type &edge) const noexcept {
     return TraitBase::has_edge(edge);
   }
 
@@ -130,57 +134,224 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
 
   using edge_type = EdgePair<Vertex>;
   using adj_list_type = list<vertex_type>;
-  using edges_type = list<adj_list_type>;
-  using edge_iterator_type = adj_list_type::iterator;
-  using const_edge_iterator_type = adj_list_type::const_iterator;
-  using out_edges_type =
-      unordered_map<vertex_type, typename edges_type::iterator>;
+  using adj_iterator_type = adj_list_type::iterator;
+  using const_adj_iterator_type = adj_list_type::const_iterator;
+  using edges_type = unordered_map<vertex_type, adj_list_type>;
 
   vertices_type vertices_;
   edges_type edges_;
-  out_edges_type out_edges_;
 
-  const auto &vertices() const noexcept { return vertices_; }
+  [[nodiscard]] const auto &vertices() const noexcept { return vertices_; }
 
-  const auto &edges() const noexcept { return edges_; }
-
-  const auto &out_edges() const noexcept { return out_edges_; }
+  [[nodiscard]] const auto &edges() const noexcept { return edges_; }
 
   void add_vertex(const vertex_type &vertex) {
     vertices_.insert(vertex);
-    if (!out_edges_.contains(vertex)) {
-      edges_.emplace_front();
-      out_edges_.emplace(vertex, edges_.begin());
+    if (!edges_.contains(vertex)) {
+      edges_.emplace(vertex, {});
     }
   }
 
-  bool has_vertex(const vertex_type &vertex) const {
+  [[nodiscard]] bool has_vertex(const vertex_type &vertex) const {
     vertices_.contains(vertex);
   }
 
-  ranges::subrange<edge_iterator_type, edge_iterator_type>
+  [[nodiscard]] ranges::subrange<adj_iterator_type, adj_iterator_type>
   adj(const vertex_type &vertex) {
-    return *out_edges_.at(vertex);
+    return edges_.at(vertex);
   }
 
-  ranges::subrange<const_edge_iterator_type, const_edge_iterator_type>
+  [[nodiscard]] ranges::subrange<const_adj_iterator_type,
+                                 const_adj_iterator_type>
   adj(const vertex_type &vertex) const {
-    return *out_edges_.at(vertex);
+    return edges_.at(vertex);
   }
 
-  bool has_edge(const edge_type &edge) const {
+  [[nodiscard]] bool has_edge(const edge_type &edge) const {
     auto edge_range = adj(edge.first);
     return ranges::find(edge_range, edge.second) != edge_range.end();
   }
 
   void add_edge(const vertex_type &src, const vertex_type &dst) {
-    out_edges_[src]->emplace_front(dst);
+    edges_[src]->emplace_front(dst);
   }
 };
 
 struct AdjListTraitTag {
   template <Descriptor VertexType, typename Derived>
   using Trait = AdjListTraits<VertexType, Derived>;
+};
+
+template <Descriptor V, bool Const>
+requires(is_integral_v<V>) struct AdjMatIterator {
+  using difference_type = ptrdiff_t;
+  using value_type = V;
+  using pointer = conditional_t<Const, const V *, V *>;
+  using reference = V;
+  using iterator_category = bidirectional_iterator_tag;
+  using iterator_concept = iterator_category;
+  using orig_iter_type = conditional_t<Const, vector<char>::const_iterator,
+                                       vector<char>::iterator>;
+
+  orig_iter_type first_;
+  orig_iter_type curr_;
+  orig_iter_type last_;
+
+  AdjMatIterator() noexcept = default;
+
+  AdjMatIterator(orig_iter_type first, orig_iter_type curr,
+                 orig_iter_type last) noexcept
+      : first_{first}, curr_{curr}, last_{last} {
+    set_pos();
+  }
+
+  AdjMatIterator(const AdjMatIterator &other) noexcept
+      : AdjMatIterator(other.first_, other.curr_, other.last_) {}
+
+  template <bool ConstOther>
+  AdjMatIterator(const AdjMatIterator<V, ConstOther> &other) noexcept
+      : AdjMatIterator(other.first_, other.curr_, other.last_) {}
+
+  reference operator*() const noexcept {
+    return static_cast<V>(curr_ - first_);
+  }
+
+  void set_pos() noexcept {
+    while (curr_ != last_ && !(*curr_)) {
+      ++curr_;
+    }
+  }
+
+  void inc_pos() noexcept {
+    if (curr_ != last_) {
+      ++curr_;
+    }
+    while (curr_ != last_ && !(*curr_)) {
+      ++curr_;
+    }
+  }
+
+  void dec_pos() noexcept {
+    if (curr_ != first_) {
+      --curr_;
+    }
+    while (curr_ != first_ && !(*curr_)) {
+      --curr_;
+    }
+  }
+
+  AdjMatIterator &operator++() noexcept {
+    inc_pos();
+    return *this;
+  }
+
+  AdjMatIterator operator++(int) noexcept {
+    AdjMatIterator temp = *this;
+    inc_pos();
+    return temp;
+  }
+
+  AdjMatIterator &operator--() noexcept {
+    dec_pos();
+    return *this;
+  }
+
+  AdjMatIterator operator--(int) noexcept {
+    AdjMatIterator temp = *this;
+    dec_pos();
+    return temp;
+  }
+
+  friend bool operator==(const AdjMatIterator &x,
+                         const AdjMatIterator &y) noexcept {
+    return x.first_ == y.first_ && x.curr_ == y.curr_ && x.last_ == y.last_;
+  }
+
+  friend bool operator!=(const AdjMatIterator &x,
+                         const AdjMatIterator &y) noexcept {
+    return !(x == y);
+  }
+};
+
+template <Descriptor Vertex, typename Derived>
+requires(is_integral_v<Vertex>) struct AdjMatTraits {
+  using vertex_type = Vertex;
+  using vertices_type = vector<Vertex>;
+  using vertex_iterator_type = vertices_type::iterator;
+
+  using edge_type = EdgePair<Vertex>;
+  using edges_type = vector<char>;
+  using adj_iterator_type = AdjMatIterator<Vertex, false>;
+  using const_adj_iterator_type = AdjMatIterator<Vertex, true>;
+
+  vertices_type vertices_;
+  edges_type edges_;
+
+  [[nodiscard]] const auto &vertices() const noexcept { return vertices_; }
+
+  [[nodiscard]] const auto num_vertices() const noexcept {
+    return ssize(vertices_);
+  }
+
+  [[nodiscard]] const auto &edges() const noexcept { return edges_; }
+
+  void add_vertex(const vertex_type &vertex) {
+    if (!has_vertex(vertex) && vertex > 0) {
+      auto old_size = num_vertices();
+      auto new_size = static_cast<index_t>(vertex + 1);
+      vertices_.resize(new_size);
+      edges_.resize(new_size * new_size);
+      if (new_size > old_size) {
+        for (index_t i = old_size - 1; i >= 0; --i) {
+          for (index_t j = old_size - 1; j >= 0; --j) {
+            edges_[i * new_size + j] = edges_[i * old_size + j];
+            edges_[i * old_size + j] = 0;
+          }
+        }
+      }
+    }
+  }
+
+  [[nodiscard]] bool has_vertex(const vertex_type &vertex) const {
+    return vertex >= 0 && vertex < num_vertices();
+  }
+
+  [[nodiscard]] ranges::subrange<adj_iterator_type, adj_iterator_type>
+  adj(const vertex_type &vertex) {
+    if (!has_vertex(vertex)) {
+      throw invalid_argument("in adj() the graph has no vertex");
+    }
+    auto first = edges_.begin() + vertex * num_vertices();
+    auto last = edges_.begin() + (vertex + 1) * num_vertices();
+    return {adj_iterator_type(first, first, last),
+            adj_iterator_type(first, last, last)};
+  }
+
+  [[nodiscard]] ranges::subrange<const_adj_iterator_type,
+                                 const_adj_iterator_type>
+  adj(const vertex_type &vertex) const {
+    if (!has_vertex(vertex)) {
+      throw invalid_argument("in adj() the graph has no vertex");
+    }
+    auto first = edges_.begin() + vertex * num_vertices();
+    auto last = edges_.begin() + (vertex + 1) * num_vertices();
+    return {const_adj_iterator_type(first, first, last),
+            const_adj_iterator_type(first, last, last)};
+  }
+
+  [[nodiscard]] bool has_edge(const edge_type &edge) const {
+    return has_vertex(edge.first) && has_vertex(edge.second) &&
+           edges_[edge.first * num_vertices() + edge.second];
+  }
+
+  void add_edge(const vertex_type &src, const vertex_type &dst) {
+    edges_[src * num_vertices() + dst] = 1;
+  }
+};
+
+struct AdjMatTraitTag {
+  template <Descriptor VertexType, typename Derived>
+  using Trait = AdjMatTraits<VertexType, Derived>;
 };
 
 template <Descriptor VertexType, bool Directed, typename ContainerTraitTag>
@@ -215,10 +386,16 @@ template <bool Directed, typename ContainerTraitTag> struct GraphTraits {
 };
 
 template <Descriptor VertexType>
-using DiGraph = Graph<VertexType, GraphTraits<true, AdjListTraitTag>>;
+using DirGraph = Graph<VertexType, GraphTraits<true, AdjListTraitTag>>;
 
 template <Descriptor VertexType>
 using UndirGraph = Graph<VertexType, GraphTraits<false, AdjListTraitTag>>;
+
+template <Descriptor VertexType>
+using AdjMatDirGraph = Graph<VertexType, GraphTraits<true, AdjMatTraitTag>>;
+
+template <Descriptor VertexType>
+using AdjMatUndirGraph = Graph<VertexType, GraphTraits<false, AdjMatTraitTag>>;
 
 } // namespace frozenca
 

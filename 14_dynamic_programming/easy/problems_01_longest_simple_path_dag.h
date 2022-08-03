@@ -12,7 +12,7 @@ namespace frozenca {
 using namespace std;
 
 template <Descriptor V>
-float longest_simple_path_dag(DiGraph<V> &g, const V &src, const V &dst) {
+float longest_simple_path_dag(DirGraph<V> &g, const V &src, const V &dst) {
 
   auto &weight = g.add_edge_property<float>(GraphPropertyTag::EdgeWeight);
   auto &dist = g.add_vertex_property<float>(GraphPropertyTag::VertexDistance);

@@ -69,7 +69,7 @@ template <typename T>
 concept GraphConcept = T::is_graph_;
 
 template <typename T>
-concept DiGraphConcept = GraphConcept<T> && T::directed_;
+concept DirGraphConcept = GraphConcept<T> && T::directed_;
 
 template <typename T>
 concept DiskAllocable = is_same_v<remove_cvref_t<T>, T> &&

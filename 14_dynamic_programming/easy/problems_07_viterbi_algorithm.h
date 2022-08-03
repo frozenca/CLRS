@@ -19,10 +19,10 @@ struct Sound {
   Sound(string sound, float prob) : sound_{move(sound)}, prob_{prob} {}
 };
 
-using SoundGraph = DiGraph<int>;
+using SoundGraph = DirGraph<int>;
 using SequenceIter = vector<string_view>::const_iterator;
 
-bool viterbi_get_path(DiGraph<int> &g, const EdgeProperty<int, Sound> &sound,
+bool viterbi_get_path(DirGraph<int> &g, const EdgeProperty<int, Sound> &sound,
                       SequenceIter s_first, SequenceIter s_last, int curr_index,
                       GraphProperty<vector<int>> &succ) {
   if (s_first == s_last) {
@@ -42,7 +42,7 @@ bool viterbi_get_path(DiGraph<int> &g, const EdgeProperty<int, Sound> &sound,
   return false;
 }
 
-vector<int> viterbi_path(DiGraph<int> &g, int src,
+vector<int> viterbi_path(DirGraph<int> &g, int src,
                          const vector<string_view> &target_sequence) {
 
   const auto &sound = g.get_edge_property<Sound>(GraphPropertyTag::EdgeWeight);
@@ -62,7 +62,7 @@ vector<int> viterbi_path(DiGraph<int> &g, int src,
   return path;
 }
 
-float viterbi_get_optimal_path(DiGraph<int> &g,
+float viterbi_get_optimal_path(DirGraph<int> &g,
                                const EdgeProperty<int, Sound> &sound,
                                SequenceIter s_first, SequenceIter s_last,
                                int curr_index) {
@@ -91,7 +91,7 @@ float viterbi_get_optimal_path(DiGraph<int> &g,
 }
 
 pair<vector<int>, float>
-viterbi_optimal_path(DiGraph<int> &g, int src,
+viterbi_optimal_path(DirGraph<int> &g, int src,
                      const vector<string_view> &target_sequence) {
   const auto &sound = g.get_edge_property<Sound>(GraphPropertyTag::EdgeWeight);
   g.add_graph_property<vector<int>>(GraphPropertyTag::GraphPath)().clear();
