@@ -19,29 +19,29 @@ float longest_simple_path_dag(DirGraph<V> &g, const V &src, const V &dst) {
 
   constexpr auto MINF = numeric_limits<float>::lowest();
   for (const auto &vertex : g.vertices()) {
-    dist(vertex) = MINF;
+    dist[vertex] = MINF;
   }
-  dist(src) = 0;
+  dist[src] = 0;
 
   topological_sort(g);
 
-  auto top_sort =
+  auto &top_sort =
       g.get_graph_property<list<V>>(GraphPropertyTag::GraphTopSort).get();
 
   while (!top_sort.empty()) {
     auto curr = top_sort.back();
     top_sort.pop_back();
 
-    if (dist(curr) != MINF) {
+    if (dist[curr] != MINF) {
       for (const auto &next : g.adj(curr)) {
-        auto alt = dist(curr) + weight({curr, next});
-        if (alt > dist(next)) {
-          dist(next) = alt;
+        auto alt = dist[curr] + weight[{curr, next}];
+        if (alt > dist[next]) {
+          dist[next] = alt;
         }
       }
     }
   }
-  return dist(dst);
+  return dist[dst];
 }
 
 } // namespace frozenca
