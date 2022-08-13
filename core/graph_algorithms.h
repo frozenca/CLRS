@@ -11,6 +11,17 @@ namespace frozenca {
 
 using namespace std;
 
+template <GraphConcept GraphType>
+GraphType transpose(const GraphType& g) {
+  GraphType g_t;
+  for (const auto &src : g.vertices()) {
+    for (const auto &dst : g.adj(src)) {
+      g_t.add_edge(dst, src);
+    }
+  }
+  return g_t;
+}
+
 template <Descriptor V>
 bool topological_sort_helper(DirGraph<V> &g,
                              VertexProperty<V, VisitMark> &visited,
