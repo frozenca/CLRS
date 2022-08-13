@@ -69,6 +69,9 @@ template <typename T>
 concept GraphConcept = T::is_graph_;
 
 template <typename T>
+concept UndirGraphConcept = GraphConcept<T> && !T::directed_;
+
+template <typename T>
 concept DirGraphConcept = GraphConcept<T> && T::directed_;
 
 template <typename T>

@@ -23,6 +23,7 @@ class Graph : private Traits::template Impl<VertexType> {
 public:
   using TraitBase = Traits::template Impl<VertexType>;
   using vertex_type = TraitBase::vertex_type;
+  using vertices_type = TraitBase::vertices_type;
   using edge_type = TraitBase::edge_type;
   static constexpr bool directed_ = TraitBase::directed_;
   static constexpr bool multi_ = TraitBase::multi_;
@@ -81,7 +82,7 @@ public:
   }
 
   template <typename PropertyType>
-  GraphProperty<PropertyType> &add_graph_property(const GraphPropertyTag &tag) {
+  PropertyType &add_graph_property(const GraphPropertyTag &tag) {
     properties_.emplace(tag, make_unique<GraphProperty<PropertyType>>());
     return get_graph_property<PropertyType>(tag);
   }
@@ -115,15 +116,16 @@ public:
   }
 
   template <typename PropertyType>
-  GraphProperty<PropertyType> &get_graph_property(const GraphPropertyTag &tag) {
-    return dynamic_cast<GraphProperty<PropertyType> &>(*properties_.at(tag));
+  PropertyType &get_graph_property(const GraphPropertyTag &tag) {
+    return dynamic_cast<GraphProperty<PropertyType> &>(*properties_.at(tag))
+        .get();
   }
 
   template <typename PropertyType>
-  const GraphProperty<PropertyType> &
-  get_graph_property(const GraphPropertyTag &tag) const {
+  const PropertyType &get_graph_property(const GraphPropertyTag &tag) const {
     return dynamic_cast<const GraphProperty<PropertyType> &>(
-        *properties_.at(tag));
+               *properties_.at(tag))
+        .get();
   }
 
 private:
@@ -148,6 +150,7 @@ struct GraphTraitsImpl
   using Base::has_edge;
   using Base::has_vertex;
   using Base::vertices;
+  using vertices_type = Base::vertices_type;
 
   void add_edge(const vertex_type &src, const vertex_type &dst) {
     add_vertex(src);

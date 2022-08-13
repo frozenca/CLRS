@@ -2,7 +2,7 @@
 #define __CLRS4_GRAPH_ALGORITHMS_H__
 
 #include <19_data_structures_for_disjoint_sets/easy/union_find.h>
-#include <20_elementary_graph_algorithms/easy/01_representations_of_graph.h>
+#include <20_elementary_graph_algorithms/easy/01_representations_of_graphs.h>
 #include <20_elementary_graph_algorithms/easy/02_breadth_first_search.h>
 #include <common.h>
 #include <graph.h>
@@ -26,17 +26,17 @@ bool topological_sort_helper(DirGraph<V> &g,
     auto status = visited[dst];
     if (status == VisitMark::Unvisited) {
       if (!topological_sort_helper(g, visited, top_sort, dst)) {
-        top_sort.get().clear();
+        top_sort.clear();
         return false;
       }
     } else if (status == VisitMark::Visiting) {
       cerr << "Not a DAG, can't topological sort\n";
-      top_sort.get().clear();
+      top_sort.clear();
       return false;
     }
   }
   visited[vertex] = VisitMark::Visited;
-  top_sort.get().push_back(vertex);
+  top_sort.push_back(vertex);
   return true;
 }
 

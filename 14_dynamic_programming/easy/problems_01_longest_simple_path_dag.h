@@ -26,7 +26,7 @@ float longest_simple_path_dag(DirGraph<V> &g, const V &src, const V &dst) {
   topological_sort(g);
 
   auto &top_sort =
-      g.get_graph_property<list<V>>(GraphPropertyTag::GraphTopSort).get();
+      g.get_graph_property<list<V>>(GraphPropertyTag::GraphTopSort);
 
   while (!top_sort.empty()) {
     auto curr = top_sort.back();
