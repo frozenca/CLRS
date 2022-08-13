@@ -148,7 +148,7 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
   void add_vertex(const vertex_type &vertex) {
     vertices_.insert(vertex);
     if (!edges_.contains(vertex)) {
-      edges_.emplace(vertex, {});
+      edges_[vertex] = {};
     }
   }
 
@@ -156,14 +156,11 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
     vertices_.contains(vertex);
   }
 
-  [[nodiscard]] ranges::subrange<adj_iterator_type, adj_iterator_type>
-  adj(const vertex_type &vertex) {
+  [[nodiscard]] auto &adj(const vertex_type &vertex) {
     return edges_.at(vertex);
   }
 
-  [[nodiscard]] ranges::subrange<const_adj_iterator_type,
-                                 const_adj_iterator_type>
-  adj(const vertex_type &vertex) const {
+  [[nodiscard]] const auto &adj(const vertex_type &vertex) const {
     return edges_.at(vertex);
   }
 
@@ -173,7 +170,7 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
   }
 
   void add_edge(const vertex_type &src, const vertex_type &dst) {
-    edges_[src]->emplace_front(dst);
+    edges_[src].emplace_front(dst);
   }
 };
 
@@ -187,7 +184,7 @@ requires(is_integral_v<V>) struct AdjMatIterator {
   using difference_type = ptrdiff_t;
   using value_type = V;
   using pointer = conditional_t<Const, const V *, V *>;
-  using reference = V;
+  using reference = conditional_t<Const, const V &, V &>;
   using iterator_category = bidirectional_iterator_tag;
   using iterator_concept = iterator_category;
   using orig_iter_type = conditional_t<Const, vector<char>::const_iterator,
@@ -195,6 +192,7 @@ requires(is_integral_v<V>) struct AdjMatIterator {
 
   orig_iter_type first_;
   orig_iter_type curr_;
+  V val_;
   orig_iter_type last_;
 
   AdjMatIterator() noexcept = default;
@@ -208,18 +206,18 @@ requires(is_integral_v<V>) struct AdjMatIterator {
   AdjMatIterator(const AdjMatIterator &other) noexcept
       : AdjMatIterator(other.first_, other.curr_, other.last_) {}
 
-  template <bool ConstOther>
-  AdjMatIterator(const AdjMatIterator<V, ConstOther> &other) noexcept
+  AdjMatIterator(const AdjMatIterator<V, false> &other) noexcept requires(Const)
       : AdjMatIterator(other.first_, other.curr_, other.last_) {}
 
-  reference operator*() const noexcept {
-    return static_cast<V>(curr_ - first_);
-  }
+  reference operator*() noexcept { return val_; }
+
+  pointer operator->() noexcept { return &val_; }
 
   void set_pos() noexcept {
     while (curr_ != last_ && !(*curr_)) {
       ++curr_;
     }
+    val_ = static_cast<V>(curr_ - first_);
   }
 
   void inc_pos() noexcept {
@@ -229,6 +227,7 @@ requires(is_integral_v<V>) struct AdjMatIterator {
     while (curr_ != last_ && !(*curr_)) {
       ++curr_;
     }
+    val_ = static_cast<V>(curr_ - first_);
   }
 
   void dec_pos() noexcept {
@@ -238,6 +237,7 @@ requires(is_integral_v<V>) struct AdjMatIterator {
     while (curr_ != first_ && !(*curr_)) {
       --curr_;
     }
+    val_ = static_cast<V>(curr_ - first_);
   }
 
   AdjMatIterator &operator++() noexcept {
@@ -271,6 +271,17 @@ requires(is_integral_v<V>) struct AdjMatIterator {
                          const AdjMatIterator &y) noexcept {
     return !(x == y);
   }
+
+  friend difference_type operator-(const AdjMatIterator &x,
+                                   const AdjMatIterator &y) noexcept {
+    auto it = y;
+    difference_type cnt = 0;
+    while (it != x) {
+      ++it;
+      ++cnt;
+    }
+    return cnt;
+  }
 };
 
 template <Descriptor Vertex, typename Derived>
@@ -296,18 +307,21 @@ requires(is_integral_v<Vertex>) struct AdjMatTraits {
   [[nodiscard]] const auto &edges() const noexcept { return edges_; }
 
   void add_vertex(const vertex_type &vertex) {
-    if (!has_vertex(vertex) && vertex > 0) {
+    if (!has_vertex(vertex) && vertex >= 0) {
       auto old_size = num_vertices();
       auto new_size = static_cast<index_t>(vertex + 1);
       vertices_.resize(new_size);
-      edges_.resize(new_size * new_size);
+      iota(vertices_.begin() + old_size, vertices_.end(),
+           static_cast<vertex_type>(old_size));
+
       if (new_size > old_size) {
+        vector<char> new_edges(new_size * new_size);
         for (index_t i = old_size - 1; i >= 0; --i) {
           for (index_t j = old_size - 1; j >= 0; --j) {
-            edges_[i * new_size + j] = edges_[i * old_size + j];
-            edges_[i * old_size + j] = 0;
+            new_edges[i * new_size + j] = edges_[i * old_size + j];
           }
         }
+        swap(new_edges, edges_);
       }
     }
   }

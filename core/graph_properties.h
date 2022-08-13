@@ -26,6 +26,7 @@ enum class GraphPropertyTag : int32_t {
   VertexDepth,
   VertexSize,
   VertexParent,
+  VertexOutdegree,
   VertexLink,
   VertexColor,
   EdgeWeight,
@@ -50,6 +51,9 @@ struct VertexProperty final : public Property {
 
   static constexpr bool int_vertex_ = is_integral_v<VertexType>;
 
+  using ContainerType = conditional_t<int_vertex_, vector<PropertyType>,
+                                      unordered_map<VertexType, PropertyType>>;
+
   PropertyType &operator[](const VertexType &vertex) {
     if constexpr (int_vertex_) {
       if (vertex >= ssize(vertex_properties_)) {
@@ -62,15 +66,18 @@ struct VertexProperty final : public Property {
     return vertex_properties_.at(vertex);
   }
 
+  ContainerType &get() { return vertex_properties_; }
+
+  const ContainerType &get() const { return vertex_properties_; }
+
 private:
-  conditional_t<int_vertex_, vector<PropertyType>,
-                unordered_map<VertexType, PropertyType>>
-      vertex_properties_;
+  ContainerType vertex_properties_;
 };
 
 template <Descriptor VertexType, typename PropertyType>
 struct EdgeProperty final : public Property {
   using EdgeType = EdgePair<VertexType>;
+  using ContainerType = unordered_map<EdgeType, PropertyType, Hash<EdgeType>>;
   PropertyType &operator[](const EdgeType &edge) {
     return edge_properties_[edge];
   }
@@ -78,14 +85,18 @@ struct EdgeProperty final : public Property {
     return edge_properties_.at(edge);
   }
 
+  ContainerType &get() { return edge_properties_; }
+
+  const ContainerType &get() const { return edge_properties_; }
+
 private:
-  unordered_map<EdgeType, PropertyType, Hash<EdgeType>> edge_properties_;
+  ContainerType edge_properties_;
 };
 
 template <typename PropertyType> struct GraphProperty final : public Property {
-  PropertyType & get() { return graph_property_; }
+  PropertyType &get() { return graph_property_; }
 
-  const PropertyType & get() const { return graph_property_; }
+  const PropertyType &get() const { return graph_property_; }
 
 private:
   PropertyType graph_property_;
