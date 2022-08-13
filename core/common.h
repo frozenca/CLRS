@@ -72,6 +72,9 @@ template <typename T>
 concept DirGraphConcept = GraphConcept<T> && T::directed_;
 
 template <typename T>
+concept MultiGraphConcept = GraphConcept<T> && T::multi_;
+
+template <typename T>
 concept DiskAllocable = is_same_v<remove_cvref_t<T>, T> &&
     is_trivially_copyable_v<T> &&(sizeof(T) % alignof(T) == 0);
 
