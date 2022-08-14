@@ -21,6 +21,7 @@ template <Descriptor V> struct Hash<EdgePair<V>> {
 
 enum class GraphPropertyTag : int32_t {
   VertexColor,
+  VertexComponent,
   VertexDepth,
   VertexDistance,
   VertexLink,
