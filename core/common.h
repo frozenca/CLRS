@@ -68,6 +68,12 @@ bool operator!=(const EdgePair<Vertex> &e1, const EdgePair<Vertex> &e2) {
 template <typename T>
 concept GraphConcept = T::is_graph_;
 
+template <GraphConcept G>
+using V = typename G::vertex_type;
+
+template <GraphConcept G>
+using Vs = typename G::vertices_type;
+
 template <typename T>
 concept UndirGraphConcept = GraphConcept<T> && !T::directed_;
 

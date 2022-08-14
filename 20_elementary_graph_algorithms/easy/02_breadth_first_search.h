@@ -11,14 +11,13 @@ namespace frozenca {
 
 using namespace std;
 
-template <GraphConcept GraphType> void init_properties(GraphType &g) {
-  using V = GraphType::vertex_type;
+template <GraphConcept G> void init_properties_bfs(G &g) {
   auto &visited =
       g.add_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
   auto &depth = g.add_vertex_property<index_t>(GraphPropertyTag::VertexDepth);
 
   auto &pred =
-      g.add_vertex_property<optional<V>>(GraphPropertyTag::VertexParent);
+      g.add_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
   for (const auto &v : g.vertices()) {
     visited[v] = VisitMark::Unvisited;
     depth[v] = numeric_limits<index_t>::max();
@@ -26,15 +25,13 @@ template <GraphConcept GraphType> void init_properties(GraphType &g) {
   }
 }
 
-template <GraphConcept GraphType> void init_properties_bipartite(GraphType &g) {
-  using V = GraphType::vertex_type;
-  using Vs = GraphType::vertices_type;
+template <GraphConcept G> void init_properties_bipartite(G &g) {
   auto &depth = g.add_vertex_property<index_t>(GraphPropertyTag::VertexDepth);
 
   auto &pred =
-      g.add_vertex_property<optional<V>>(GraphPropertyTag::VertexParent);
+      g.add_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
   auto &color = g.add_vertex_property<index_t>(GraphPropertyTag::VertexColor);
-  g.add_graph_property<pair<Vs, Vs>>(GraphPropertyTag::GraphBipartite);
+  g.add_graph_property<pair<Vs<G>, Vs<G>>>(GraphPropertyTag::GraphBipartite);
   for (const auto &v : g.vertices()) {
     depth[v] = numeric_limits<index_t>::max();
     pred[v] = nullopt;
@@ -42,19 +39,17 @@ template <GraphConcept GraphType> void init_properties_bipartite(GraphType &g) {
   }
 }
 
-template <GraphConcept GraphType>
-void bfs(GraphType &g, const typename GraphType::vertex_type &src) {
-  using V = GraphType::vertex_type;
+template <GraphConcept G> void bfs(G &g, const V<G> &src) {
   auto &visited =
       g.get_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
   auto &depth = g.get_vertex_property<index_t>(GraphPropertyTag::VertexDepth);
   auto &pred =
-      g.get_vertex_property<optional<V>>(GraphPropertyTag::VertexParent);
+      g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
 
   visited[src] = VisitMark::Visiting;
   depth[src] = 0;
 
-  queue<V> q;
+  queue<V<G>> q;
   q.push(src);
   while (!q.empty()) {
     auto u = q.front();
@@ -84,27 +79,23 @@ void print_path(const VertexProperty<V, optional<V>> &parent, const V &s,
   }
 }
 
-template <GraphConcept GraphType>
-void print_path(const GraphType &g, const typename GraphType::vertex_type &src,
-                const typename GraphType::vertex_type &dst) {
-  using V = typename GraphType::vertex_type;
+template <GraphConcept G>
+void print_path(const G &g, const V<G> &src, const V<G> &dst) {
   const auto &pred =
-      g.get_vertex_property<optional<V>>(GraphPropertyTag::VertexParent);
+      g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
   print_path(pred, src, dst);
 }
 
-template <GraphConcept GraphType>
-bool bfs_bipartite(GraphType &g, const typename GraphType::vertex_type &src) {
-  using V = GraphType::vertex_type;
+template <GraphConcept G> bool bfs_bipartite(G &g, const V<G> &src) {
   auto &depth = g.get_vertex_property<index_t>(GraphPropertyTag::VertexDepth);
   auto &pred =
-      g.get_vertex_property<optional<V>>(GraphPropertyTag::VertexParent);
+      g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
   auto &color = g.get_vertex_property<index_t>(GraphPropertyTag::VertexColor);
 
   depth[src] = 0;
   color[src] = 0;
 
-  queue<V> q;
+  queue<V<G>> q;
   q.push(src);
   while (!q.empty()) {
     auto u = q.front();
@@ -123,9 +114,7 @@ bool bfs_bipartite(GraphType &g, const typename GraphType::vertex_type &src) {
   return true;
 }
 
-template <UndirGraphConcept GraphType> bool bipartite(GraphType &g) {
-  using V = GraphType::vertex_type;
-  using Vs = GraphType::vertices_type;
+template <UndirGraphConcept G> bool bipartite(G &g) {
   init_properties_bipartite(g);
   auto &color = g.get_vertex_property<index_t>(GraphPropertyTag::VertexColor);
   for (const auto &v : g.vertices()) {
@@ -136,8 +125,8 @@ template <UndirGraphConcept GraphType> bool bipartite(GraphType &g) {
     }
   }
   auto &depth = g.get_vertex_property<index_t>(GraphPropertyTag::VertexDepth);
-  auto &bipartition =
-      g.get_graph_property<pair<Vs, Vs>>(GraphPropertyTag::GraphBipartite);
+  auto &bipartition = g.get_graph_property<pair<Vs<G>, Vs<G>>>(
+      GraphPropertyTag::GraphBipartite);
   for (const auto &v : g.vertices()) {
     if (depth[v] % 2 == 0) {
       bipartition.first.insert(v);
@@ -148,21 +137,20 @@ template <UndirGraphConcept GraphType> bool bipartite(GraphType &g) {
   return true;
 }
 
-template <UndirGraphConcept GraphType> index_t tree_diameter(GraphType &g) {
-  using V = GraphType::vertex_type;
-  init_properties(g);
+template <UndirGraphConcept G> index_t tree_diameter(G &g) {
+  init_properties_bfs(g);
   auto start = *g.vertices().begin();
   bfs(g, start);
   auto &depth = g.get_vertex_property<index_t>(GraphPropertyTag::VertexDepth);
   index_t max_d = 0;
-  V pivot = start;
+  V<G> pivot = start;
   for (const auto &v : g.vertices()) {
     if (max_d < depth[v]) {
       pivot = v;
       max_d = depth[v];
     }
   }
-  init_properties(g);
+  init_properties_bfs(g);
   bfs(g, pivot);
   max_d = 0;
   for (const auto &v : g.vertices()) {

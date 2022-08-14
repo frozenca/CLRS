@@ -4,6 +4,7 @@
 #include <19_data_structures_for_disjoint_sets/easy/union_find.h>
 #include <20_elementary_graph_algorithms/easy/01_representations_of_graphs.h>
 #include <20_elementary_graph_algorithms/easy/02_breadth_first_search.h>
+#include <20_elementary_graph_algorithms/easy/03_depth_first_search.h>
 #include <common.h>
 #include <graph.h>
 #include <iostream>

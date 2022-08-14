@@ -8,8 +8,7 @@ namespace frozenca {
 
 using namespace std;
 
-template <GraphConcept GraphType> auto outdegree(GraphType &g) {
-  using V = GraphType::vertex_type;
+template <GraphConcept G> auto outdegree(G &g) {
   auto &outdegrees =
       g.add_vertex_property<index_t>(GraphPropertyTag::VertexOutdegree);
   for (const auto &vertex : g.vertices()) {
@@ -18,8 +17,8 @@ template <GraphConcept GraphType> auto outdegree(GraphType &g) {
   return outdegrees.get();
 }
 
-template <GraphConcept GraphType> GraphType transpose(const GraphType &g) {
-  GraphType g_t;
+template <GraphConcept G> G transpose(const G &g) {
+  G g_t;
   for (const auto &src : g.vertices()) {
     for (const auto &dst : g.adj(src)) {
       g_t.add_edge(dst, src);

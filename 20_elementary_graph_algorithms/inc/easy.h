@@ -3,6 +3,7 @@
 
 #include <20_elementary_graph_algorithms/easy/01_representations_of_graphs.h>
 #include <20_elementary_graph_algorithms/easy/02_breadth_first_search.h>
+#include <20_elementary_graph_algorithms/easy/03_depth_first_search.h>
 #include <test.h>
 #include <util.h>
 
