@@ -16,6 +16,9 @@ template <GraphConcept G> void init_properties_dfs(G &g) {
   auto &pred =
       g.add_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
   auto &cc = g.add_vertex_property<index_t>(GraphPropertyTag::VertexComponent);
+  auto &finish_order =
+      g.add_graph_property<vector<V<G>>>(GraphPropertyTag::GraphVisitSort);
+  finish_order.clear();
   for (const auto &v : g.vertices()) {
     visited[v] = VisitMark::Unvisited;
     pred[v] = nullopt;
@@ -30,7 +33,8 @@ void dfs_visit(G &g, const V<G> &u, VertexProperty<V<G>, VisitMark> &visited,
                VertexProperty<V<G>, index_t> &d,
                VertexProperty<V<G>, index_t> &f,
                VertexProperty<V<G>, optional<V<G>>> &pred,
-               VertexProperty<V<G>, index_t> &cc, index_t &time,
+               VertexProperty<V<G>, index_t> &cc,
+               vector<V<G>> &finish_order, index_t &time,
                index_t &curr_cc, bool print) {
   time++;
   d[u] = time;
@@ -50,15 +54,17 @@ void dfs_visit(G &g, const V<G> &u, VertexProperty<V<G>, VisitMark> &visited,
     }
     if (visited[v] == VisitMark::Unvisited) {
       pred[v] = u;
-      dfs_visit(g, v, visited, d, f, pred, cc, time, curr_cc, print);
+      dfs_visit(g, v, visited, d, f, pred, cc, finish_order, time, curr_cc, print);
     }
   }
   time++;
   f[u] = time;
+  finish_order.push_back(u);
   visited[u] = VisitMark::Visited;
 }
 
-template <GraphConcept G> void dfs(G &g, bool print = false) {
+template <GraphConcept G>
+void dfs(G &g, bool print = false, const vector<V<G>> &dfs_order = {}) {
   init_properties_dfs(g);
   auto &visited =
       g.get_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
@@ -67,12 +73,25 @@ template <GraphConcept G> void dfs(G &g, bool print = false) {
   auto &pred =
       g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
   auto &cc = g.get_vertex_property<index_t>(GraphPropertyTag::VertexComponent);
+  auto &finish_order =
+      g.get_graph_property<vector<V<G>>>(GraphPropertyTag::GraphVisitSort);
   index_t time = 0;
   index_t curr_cc = 0;
-  for (const auto &u : g.vertices()) {
-    if (visited[u] == VisitMark::Unvisited) {
-      curr_cc++;
-      dfs_visit(g, u, visited, d, f, pred, cc, time, curr_cc, print);
+  if (dfs_order.empty()) {
+    for (const auto &u : g.vertices()) {
+      if (visited[u] == VisitMark::Unvisited) {
+        curr_cc++;
+        dfs_visit(g, u, visited, d, f, pred, cc, finish_order, time, curr_cc,
+                  print);
+      }
+    }
+  } else {
+    for (const auto &u : dfs_order | views::reverse) {
+      if (visited[u] == VisitMark::Unvisited) {
+        curr_cc++;
+        dfs_visit(g, u, visited, d, f, pred, cc, finish_order, time, curr_cc,
+                  print);
+      }
     }
   }
 }

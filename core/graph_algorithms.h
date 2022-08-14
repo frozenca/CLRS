@@ -6,16 +6,7 @@
 #include <20_elementary_graph_algorithms/easy/02_breadth_first_search.h>
 #include <20_elementary_graph_algorithms/easy/03_depth_first_search.h>
 #include <20_elementary_graph_algorithms/easy/04_topological_sort.h>
-#include <common.h>
-#include <graph.h>
-#include <iostream>
-#include <list>
-#include <vector>
-
-namespace frozenca {
-
-using namespace std;
-
+#include <20_elementary_graph_algorithms/easy/05_strongly_connected_components.h>
 
 } // namespace frozenca
 

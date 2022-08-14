@@ -29,6 +29,7 @@ enum class GraphPropertyTag : int32_t {
   VertexOutdegree,
   VertexParent,
   VertexRank,
+  VertexScc,
   VertexSize,
   VertexTime,
   VertexTimeFinish,
@@ -37,6 +38,7 @@ enum class GraphPropertyTag : int32_t {
   GraphBipartite,
   GraphPath,
   GraphTopSort,
+  GraphVisitSort,
 };
 
 template <> struct Hash<GraphPropertyTag> {
