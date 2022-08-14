@@ -5,54 +5,17 @@
 #include <20_elementary_graph_algorithms/easy/01_representations_of_graphs.h>
 #include <20_elementary_graph_algorithms/easy/02_breadth_first_search.h>
 #include <20_elementary_graph_algorithms/easy/03_depth_first_search.h>
+#include <20_elementary_graph_algorithms/easy/04_topological_sort.h>
 #include <common.h>
 #include <graph.h>
 #include <iostream>
 #include <list>
 #include <vector>
 
-
 namespace frozenca {
 
 using namespace std;
 
-template <Descriptor V>
-bool topological_sort_helper(DirGraph<V> &g,
-                             VertexProperty<V, VisitMark> &visited,
-                             GraphProperty<list<V>> &top_sort,
-                             const V &vertex) {
-  visited[vertex] = VisitMark::Visiting;
-
-  for (const auto &dst : g.adj(vertex)) {
-    auto status = visited[dst];
-    if (status == VisitMark::Unvisited) {
-      if (!topological_sort_helper(g, visited, top_sort, dst)) {
-        top_sort.clear();
-        return false;
-      }
-    } else if (status == VisitMark::Visiting) {
-      cerr << "Not a DAG, can't topological sort\n";
-      top_sort.clear();
-      return false;
-    }
-  }
-  visited[vertex] = VisitMark::Visited;
-  top_sort.push_back(vertex);
-  return true;
-}
-
-template <Descriptor V> void topological_sort(DirGraph<V> &g) {
-  auto &visited =
-      g.add_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
-  auto &top_sort =
-      g.add_graph_property<list<V>>(GraphPropertyTag::GraphTopSort);
-
-  for (const auto &vertex : g.vertices()) {
-    if (visited[vertex] == VisitMark::Unvisited) {
-      topological_sort_helper(g, visited, top_sort, vertex);
-    }
-  }
-}
 
 } // namespace frozenca
 

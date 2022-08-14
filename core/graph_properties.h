@@ -25,6 +25,7 @@ enum class GraphPropertyTag : int32_t {
   VertexDepth,
   VertexDistance,
   VertexLink,
+  VertexIndegree,
   VertexOutdegree,
   VertexParent,
   VertexRank,

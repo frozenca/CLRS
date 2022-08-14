@@ -77,6 +77,41 @@ template <GraphConcept G> void dfs(G &g, bool print = false) {
   }
 }
 
+template <GraphConcept G>
+bool dfs_check_cycle(G &g, const V<G> &u,
+                     VertexProperty<V<G>, VisitMark> &visited,
+                     VertexProperty<V<G>, optional<V<G>>> &pred) {
+  visited[u] = VisitMark::Visiting;
+  for (const auto &v : g.adj(u)) {
+    if (visited[v] == VisitMark::Unvisited) {
+      pred[v] = u;
+      if (dfs_check_cycle(g, v, visited, pred)) {
+        return true;
+      }
+    } else if (visited[v] == VisitMark::Visiting && *pred[u] != v) {
+      return true;
+    }
+  }
+  visited[u] = VisitMark::Visited;
+  return false;
+}
+
+template <UndirGraphConcept G> bool has_cycle(G &g) {
+  init_properties_dfs(g);
+  auto &visited =
+      g.get_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
+  auto &pred =
+      g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
+  for (const auto &u : g.vertices()) {
+    if (visited[u] == VisitMark::Unvisited) {
+      if (dfs_check_cycle(g, u, visited, pred)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 template <GraphConcept G> void dfs_iterative(G &g) {
   init_properties_dfs(g);
   auto &visited =
