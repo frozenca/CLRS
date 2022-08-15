@@ -38,6 +38,10 @@ public:
     TraitBase::add_edge(src, dst);
   }
 
+  void remove_edge(const vertex_type &src, const vertex_type &dst) {
+    TraitBase::remove_edge(src, dst);
+  }
+
   [[nodiscard]] auto adj(const vertex_type &src) { return TraitBase::adj(src); }
 
   [[nodiscard]] auto adj(const vertex_type &src) const {
@@ -162,6 +166,15 @@ struct GraphTraitsImpl
       Base::add_edge(dst, src);
     }
   }
+
+  void remove_edge(const vertex_type &src, const vertex_type &dst) {
+    add_vertex(src);
+    add_vertex(dst);
+    Base::remove_edge(src, dst);
+    if constexpr (!directed_) {
+      Base::remove_edge(dst, src);
+    }
+  }
 };
 
 template <bool Directed, bool Multi, typename ContainerTraitTag>
@@ -223,6 +236,15 @@ struct AdjListTraits {
       }
     }
     edges_[src].insert(dst);
+  }
+
+  void remove_edge(const vertex_type &src, const vertex_type &dst) {
+    if constexpr (!Multi) {
+      if (src == dst) {
+        return;
+      }
+    }
+    edges_[src].erase(dst);
   }
 };
 
@@ -414,6 +436,10 @@ requires(is_integral_v<Vertex>) struct AdjMatTraits {
 
   void add_edge(const vertex_type &src, const vertex_type &dst) {
     edges_[src * num_vertices() + dst] = 1;
+  }
+
+  void remove_edge(const vertex_type &src, const vertex_type &dst) {
+    edges_[src * num_vertices() + dst] = 0;
   }
 };
 
