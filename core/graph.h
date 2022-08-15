@@ -24,6 +24,7 @@ public:
   using TraitBase = Traits::template Impl<VertexType>;
   using vertex_type = TraitBase::vertex_type;
   using vertices_type = TraitBase::vertices_type;
+  using vertex_iterator_type = TraitBase::vertex_iterator_type;
   using edge_type = TraitBase::edge_type;
   static constexpr bool directed_ = TraitBase::directed_;
   static constexpr bool multi_ = TraitBase::multi_;
@@ -151,6 +152,7 @@ struct GraphTraitsImpl
   using Base::has_vertex;
   using Base::vertices;
   using vertices_type = Base::vertices_type;
+  using vertex_iterator_type = Base::vertex_iterator_type;
 
   void add_edge(const vertex_type &src, const vertex_type &dst) {
     add_vertex(src);

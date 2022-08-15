@@ -12,8 +12,7 @@ using namespace std;
 template <Descriptor V>
 bool topological_sort_helper(DirGraph<V> &g,
                              VertexProperty<V, VisitMark> &visited,
-                             GraphProperty<list<V>> &top_sort,
-                             const V &vertex) {
+                             list<V> &top_sort, const V &vertex) {
   visited[vertex] = VisitMark::Visiting;
 
   for (const auto &dst : g.adj(vertex)) {
@@ -29,7 +28,7 @@ bool topological_sort_helper(DirGraph<V> &g,
     }
   }
   visited[vertex] = VisitMark::Visited;
-  top_sort.push_back(vertex);
+  top_sort.push_front(vertex);
   return true;
 }
 
@@ -106,7 +105,7 @@ template <Descriptor V> bool topological_sort_kahn(DirGraph<V> &g) {
   while (!q.empty()) {
     auto curr = q.front();
     q.pop();
-    top_sort.push_back(curr);
+    top_sort.push_front(curr);
     for (const auto &next : g.adj(curr)) {
       indegree[next]--;
       if (!indegree[next]) {

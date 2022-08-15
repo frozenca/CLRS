@@ -34,6 +34,7 @@ enum class GraphPropertyTag : int32_t {
   VertexTime,
   VertexTimeFinish,
   VertexVisited,
+  VertexWeight,
   EdgeWeight,
   GraphBipartite,
   GraphPath,

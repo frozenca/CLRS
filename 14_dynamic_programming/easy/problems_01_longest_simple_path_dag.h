@@ -29,8 +29,8 @@ float longest_simple_path_dag(DirGraph<V> &g, const V &src, const V &dst) {
       g.get_graph_property<list<V>>(GraphPropertyTag::GraphTopSort);
 
   while (!top_sort.empty()) {
-    auto curr = top_sort.back();
-    top_sort.pop_back();
+    auto curr = top_sort.front();
+    top_sort.pop_front();
 
     if (dist[curr] != MINF) {
       for (const auto &next : g.adj(curr)) {
