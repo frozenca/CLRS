@@ -39,7 +39,8 @@ template <GraphConcept G> void init_properties_bipartite(G &g) {
   }
 }
 
-template <GraphConcept G> void bfs(G &g, const V<G> &src) {
+template <GraphConcept G> void bfs(G &g, const V<G> &src, bool print = false) {
+  init_properties_bfs(g);
   auto &visited =
       g.get_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
   auto &depth = g.get_vertex_property<index_t>(GraphPropertyTag::VertexDepth);
@@ -55,6 +56,20 @@ template <GraphConcept G> void bfs(G &g, const V<G> &src) {
     auto u = q.front();
     q.pop();
     for (const auto &v : g.adj(u)) {
+      if (print) {
+        if (visited[v] == VisitMark::Unvisited) {
+          depth[v] = depth[u] + 1;
+          cout << '{' << u << ',' << v << "} : tree edge with depth "
+               << depth[u] << ", " << depth[v] << '\n';
+        } else if (pred[u].has_value() && *pred[u] == v) {
+          cout << '{' << u << ',' << v << "} : back edge with depth "
+               << depth[u] << ", " << depth[v] << '\n';
+        } else {
+          cout << '{' << u << ',' << v << "} : cross edge with depth "
+               << depth[u] << ", " << depth[v] << '\n';
+        }
+      }
+
       if (visited[v] == VisitMark::Unvisited) {
         visited[v] = VisitMark::Visiting;
         depth[v] = depth[u] + 1;
