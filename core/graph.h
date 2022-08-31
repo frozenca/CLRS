@@ -56,6 +56,8 @@ public:
     return TraitBase::vertices().size();
   }
 
+  [[nodiscard]] bool empty() const noexcept { return size() == 0; }
+
   [[nodiscard]] auto &edges() noexcept { return TraitBase::edges(); }
 
   [[nodiscard]] const auto &edges() const noexcept {

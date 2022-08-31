@@ -12,28 +12,30 @@ template <UndirGraphConcept G>
 void dfs_bcc(G &g, const V<G> &u, VertexProperty<V<G>, VisitMark> &visited,
              VertexProperty<V<G>, index_t> &d,
              VertexProperty<V<G>, index_t> &low,
+             VertexProperty<V<G>, index_t> &high,
+             VertexProperty<V<G>, index_t> &nd,
              VertexProperty<V<G>, optional<V<G>>> &pred,
              VertexProperty<V<G>, unordered_set<V<G>>> &children,
-             VertexProperty<V<G>, unordered_set<V<G>>> &backset,
-             unordered_set<V<G>> &leaves, index_t &time) {
-  time++;
+             index_t &time) {
   d[u] = time;
   visited[u] = VisitMark::Visiting;
-  bool is_leaf = true;
+  nd[u] = 1;
+  low[u] = time;
+  high[u] = time;
   for (const auto &v : g.adj(u)) {
     if (visited[v] == VisitMark::Unvisited) {
+      time++;
       pred[v] = u;
       children[u].insert(v);
-      dfs_bcc(g, v, visited, d, low, pred, children, backset, leaves, time);
-      is_leaf = false;
-    } else if (!children[v].contains(u)) {
-      backset[u].insert(v);
+      dfs_bcc(g, v, visited, d, low, high, nd, pred, children, time);
+      nd[u] += nd[v];
+      low[u] = min(low[u], low[v]);
+      high[u] = min(high[u], high[v]);
+    } else if (pred[u] != v) {
+      low[u] = min(low[u], low[v]);
+      high[u] = min(high[u], high[v]);
     }
   }
-  if (is_leaf) {
-    leaves.insert(u);
-  }
-  time++;
   visited[u] = VisitMark::Visited;
 }
 
@@ -64,44 +66,26 @@ template <UndirGraphConcept G> decltype(auto) biconnected_components(G &g) {
   auto &visited =
       g.add_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
   auto &d = g.add_vertex_property<index_t>(GraphPropertyTag::VertexTime);
-  auto &low =
-      g.add_vertex_property<index_t>(GraphPropertyTag::VertexTimeFinish);
+  auto &low = g.add_vertex_property<index_t>(GraphPropertyTag::VertexTimeLow);
+  auto &high = g.add_vertex_property<index_t>(GraphPropertyTag::VertexTimeHigh);
+  auto &nd = g.add_vertex_property<index_t>(GraphPropertyTag::VertexSize);
   auto &pred =
       g.add_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
   auto &children = g.add_vertex_property<unordered_set<V<G>>>(
       GraphPropertyTag::VertexChildren);
-  auto &backset = g.add_vertex_property<unordered_set<V<G>>>(
-      GraphPropertyTag::VertexBackSet);
   for (const auto &v : g.vertices()) {
     visited[v] = VisitMark::Unvisited;
     d[v] = 0;
     low[v] = numeric_limits<index_t>::max();
+    high[v] = 0;
+    nd[v] = 0;
     pred[v] = nullopt;
     children[v].clear();
-    backset[v].clear();
   }
   index_t time = 0;
-  unordered_set<V<G>> leaves;
   for (const auto &u : g.vertices()) {
     if (visited[u] == VisitMark::Unvisited) {
-      dfs_bcc(g, u, visited, d, low, pred, children, backset, leaves, time);
-    }
-  }
-  for (const auto &leaf : leaves) {
-    auto curr = leaf;
-    while (true) {
-      low[curr] = min(low[curr], d[curr]);
-      for (const auto &back : backset[curr]) {
-        low[curr] = min(low[curr], d[back]);
-      }
-      for (const auto &child : children[curr]) {
-        low[curr] = min(low[curr], low[child]);
-      }
-      if (pred[curr].has_value()) {
-        curr = *pred[curr];
-      } else {
-        break;
-      }
+      dfs_bcc(g, u, visited, d, low, high, nd, pred, children, time);
     }
   }
 
@@ -121,7 +105,7 @@ template <UndirGraphConcept G> decltype(auto) biconnected_components(G &g) {
       return true;
     } else {
       return ranges::any_of(children[v],
-                            [&](const auto &ch) { return low[ch] > d[v]; });
+                            [&](const auto &ch) { return low[ch] >= d[v]; });
     }
   };
 
@@ -139,7 +123,7 @@ template <UndirGraphConcept G> decltype(auto) biconnected_components(G &g) {
     if (is_articulation_point(v)) {
       articulation_points.insert(v);
     }
-    if (pred[v].has_value() && d[v] == low[v]) {
+    if (pred[v].has_value() && d[v] == low[v] && high[v] < d[v] + nd[v]) {
       bcc_index++;
       bridges.emplace(*pred[v], v);
       g_clone.remove_edge(*pred[v], v);
