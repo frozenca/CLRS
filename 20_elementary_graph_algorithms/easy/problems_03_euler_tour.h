@@ -9,27 +9,20 @@ namespace frozenca {
 
 using namespace std;
 
-template <DirGraphConcept G>
-list<V<G>> euler_cycle(G &g, list<V<G>> &L, const V<G> &v) {
-  list<V<G>> C;
-  auto u = v;
-  while (!g.adj(u).empty()) {
-    auto w = *g.adj(u).begin();
-    g.remove_edge(u, w);
-    C.push_front(u);
-    if (!g.adj(u).empty()) {
-      L.emplace_front(u);
-    }
-    u = w;
+template <GraphConcept G>
+void hierholzer(G &g, const V<G> &curr, vector<V<G>> &euler_tour) {
+  while (!g.adj(curr).empty()) {
+    auto dest = *g.adj(curr).begin();
+    g.remove_edge(curr, dest);
+    hierholzer(g, dest, euler_tour);
   }
-  C.reverse();
-  return C;
+  euler_tour.push_back(curr);
 }
 
-template <DirGraphConcept G> bool euler_tour(G &g) {
+template <GraphConcept G> bool euler_tour(G &g) {
   // unchecked assumption: g is connected
   auto &euler_tour =
-      g.add_graph_property<list<V<G>>>(GraphPropertyTag::GraphEulerTour);
+      g.add_graph_property<vector<V<G>>>(GraphPropertyTag::GraphEulerTour);
   euler_tour.clear();
   if (g.empty()) {
     return true;
@@ -54,20 +47,20 @@ template <DirGraphConcept G> bool euler_tour(G &g) {
     }
   }
 
-  list<V<G>> L;
-  const auto &vertices = g.vertices();
-  L.emplace_front(*vertices.begin());
-  typename list<V<G>>::iterator it = euler_tour.begin();
-  while (!L.empty()) {
-    auto v = L.front();
-    L.pop_front();
-    auto C = euler_cycle(g, L, v);
-    if (euler_tour.empty()) {
-      euler_tour = C;
-    } else {
-      euler_tour.splice(euler_tour.end(), C);
+  G g_clone;
+  for (const auto &u : g.vertices()) {
+    g_clone.add_vertex(u);
+    for (const auto &v : g.adj(u)) {
+      g_clone.add_edge(u, v);
     }
   }
+  for (const auto &u : g.vertices()) {
+    if (outdegree[u]) {
+      hierholzer(g_clone, u, euler_tour);
+      break;
+    }
+  }
+
   return true;
 }
 
