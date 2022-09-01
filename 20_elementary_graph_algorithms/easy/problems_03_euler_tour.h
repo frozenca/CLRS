@@ -3,7 +3,6 @@
 
 #include <common.h>
 #include <graph.h>
-#include <list>
 
 namespace frozenca {
 
