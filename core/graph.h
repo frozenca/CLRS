@@ -185,8 +185,7 @@ struct GraphTraits {
   using Impl = GraphTraitsImpl<VertexType, Directed, Multi, ContainerTraitTag>;
 };
 
-template <Descriptor Vertex, bool Multi, typename Derived>
-struct AdjListTraits {
+template <Descriptor Vertex, bool Multi, typename Derived> struct AdjSetTraits {
   using vertex_type = Vertex;
   using vertices_type = unordered_set<vertex_type>;
   using vertex_iterator_type = vertices_type::iterator;
@@ -250,9 +249,73 @@ struct AdjListTraits {
   }
 };
 
+struct AdjSetTraitTag {
+  template <Descriptor VertexType, bool Multi, typename Derived>
+  using Trait = AdjSetTraits<VertexType, Multi, Derived>;
+};
+
+template <Descriptor Vertex, typename Derived> struct AdjListTraits {
+  using vertex_type = Vertex;
+  using vertices_type = unordered_set<vertex_type>;
+  using vertex_iterator_type = vertices_type::iterator;
+
+  using edge_type = EdgePair<Vertex>;
+  using adj_list_type = list<vertex_type>;
+  using adj_iterator_type = adj_list_type::iterator;
+  using const_adj_iterator_type = adj_list_type::const_iterator;
+  using edges_type = unordered_map<vertex_type, adj_list_type>;
+
+  vertices_type vertices_;
+  edges_type edges_;
+
+  [[nodiscard]] const auto &vertices() const noexcept { return vertices_; }
+
+  [[nodiscard]] auto &edges() noexcept { return edges_; }
+
+  [[nodiscard]] const auto &edges() const noexcept { return edges_; }
+
+  void add_vertex(const vertex_type &vertex) {
+    vertices_.insert(vertex);
+    if (!edges_.contains(vertex)) {
+      edges_[vertex] = {};
+    }
+  }
+
+  [[nodiscard]] bool has_vertex(const vertex_type &vertex) const {
+    vertices_.contains(vertex);
+  }
+
+  [[nodiscard]] auto &adj(const vertex_type &vertex) {
+    return edges_.at(vertex);
+  }
+
+  [[nodiscard]] const auto &adj(const vertex_type &vertex) const {
+    return edges_.at(vertex);
+  }
+
+  [[nodiscard]] bool has_edge(const edge_type &edge) const {
+    auto edge_range = adj(edge.first);
+    return ranges::find(edge_range, edge.second) != edge_range.end();
+  }
+
+  void add_edge(const vertex_type &src, const vertex_type &dst) {
+    if (src == dst) {
+      return;
+    }
+    edges_[src].push_back(dst);
+  }
+
+  void remove_edge(const vertex_type &src, const vertex_type &dst) {
+    if (src == dst) {
+      return;
+    }
+    edges_[src].push_back(dst);
+  }
+};
+
 struct AdjListTraitTag {
   template <Descriptor VertexType, bool Multi, typename Derived>
-  using Trait = AdjListTraits<VertexType, Multi, Derived>;
+  using Trait = AdjListTraits<VertexType, Derived>;
 };
 
 template <Descriptor V, bool Const>
@@ -451,11 +514,10 @@ struct AdjMatTraitTag {
 };
 
 template <Descriptor VertexType>
-using DirGraph = Graph<VertexType, GraphTraits<true, false, AdjListTraitTag>>;
+using DirGraph = Graph<VertexType, GraphTraits<true, false, AdjSetTraitTag>>;
 
 template <Descriptor VertexType>
-using UndirGraph =
-    Graph<VertexType, GraphTraits<false, false, AdjListTraitTag>>;
+using UndirGraph = Graph<VertexType, GraphTraits<false, false, AdjSetTraitTag>>;
 
 template <Descriptor VertexType>
 using AdjMatDirGraph =
@@ -466,7 +528,15 @@ using AdjMatUndirGraph =
     Graph<VertexType, GraphTraits<false, false, AdjMatTraitTag>>;
 
 template <Descriptor VertexType>
-using MultiGraph = Graph<VertexType, GraphTraits<true, true, AdjListTraitTag>>;
+using AdjListDirGraph =
+    Graph<VertexType, GraphTraits<true, false, AdjListTraitTag>>;
+
+template <Descriptor VertexType>
+using AdjListUndirGraph =
+    Graph<VertexType, GraphTraits<false, false, AdjListTraitTag>>;
+
+template <Descriptor VertexType>
+using MultiGraph = Graph<VertexType, GraphTraits<true, true, AdjSetTraitTag>>;
 
 } // namespace frozenca
 

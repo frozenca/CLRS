@@ -40,6 +40,7 @@ enum class GraphPropertyTag : int32_t {
   VertexVisited,
   VertexWeight,
   EdgeBcc,
+  EdgeOrientation,
   EdgeWeight,
   GraphBCCArticulationPoints,
   GraphBCCBridges,
@@ -61,6 +62,8 @@ struct Property {
 };
 
 enum class VisitMark { Unvisited, Visiting, Visited };
+
+enum class EdgeOrientation { Unoriented, Less, Greater };
 
 template <Descriptor VertexType, typename PropertyType>
 struct VertexProperty final : public Property {

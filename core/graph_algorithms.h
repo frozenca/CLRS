@@ -9,5 +9,6 @@
 #include <20_elementary_graph_algorithms/easy/05_strongly_connected_components.h>
 #include <20_elementary_graph_algorithms/easy/problems_02_artic_bridge_bicc.h>
 #include <20_elementary_graph_algorithms/easy/problems_03_euler_tour.h>
+#include <20_elementary_graph_algorithms/easy/problems_05_vertex_query_planar_graphs.h>
 
 #endif //__CLRS4_GRAPH_ALGORITHMS_H__
