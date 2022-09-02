@@ -193,7 +193,7 @@ template <Descriptor Vertex, bool Multi, typename Derived> struct AdjSetTraits {
   using vertices_type = unordered_set<vertex_type>;
   using vertex_iterator_type = vertices_type::iterator;
 
-  using edge_type = EdgePair<Vertex>;
+  using edge_type = Edge<Vertex>;
   using adj_list_type = conditional_t<Multi, unordered_multiset<vertex_type>,
                                       unordered_set<vertex_type>>;
   using adj_iterator_type = adj_list_type::iterator;
@@ -262,7 +262,7 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
   using vertices_type = unordered_set<vertex_type>;
   using vertex_iterator_type = vertices_type::iterator;
 
-  using edge_type = EdgePair<Vertex>;
+  using edge_type = Edge<Vertex>;
   using adj_list_type = list<vertex_type>;
   using adj_iterator_type = adj_list_type::iterator;
   using const_adj_iterator_type = adj_list_type::const_iterator;
@@ -432,7 +432,7 @@ requires(is_integral_v<Vertex>) struct AdjMatTraits {
   using vertices_type = vector<Vertex>;
   using vertex_iterator_type = vertices_type::iterator;
 
-  using edge_type = EdgePair<Vertex>;
+  using edge_type = Edge<Vertex>;
   using edges_type = vector<char>;
   using adj_iterator_type = AdjMatIterator<Vertex, false>;
   using const_adj_iterator_type = AdjMatIterator<Vertex, true>;

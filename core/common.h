@@ -50,29 +50,29 @@ template <typename T>
 concept Descriptor = is_default_constructible_v<T> && is_assignable_v<T &, T> &&
     equality_comparable<T>;
 
-template <Descriptor Vertex> struct EdgePair {
+template <Descriptor Vertex> struct Edge {
   Vertex first;
   Vertex second;
 };
 
 template <Descriptor Vertex>
-bool operator==(const EdgePair<Vertex> &e1, const EdgePair<Vertex> &e2) {
+bool operator==(const Edge<Vertex> &e1, const Edge<Vertex> &e2) {
   return e1.first == e2.first && e1.second == e2.second;
 }
 
 template <Descriptor Vertex>
-bool operator!=(const EdgePair<Vertex> &e1, const EdgePair<Vertex> &e2) {
+bool operator!=(const Edge<Vertex> &e1, const Edge<Vertex> &e2) {
   return !(e1 == e2);
 }
 
 template <typename T>
 concept GraphConcept = T::is_graph_;
 
-template <GraphConcept G>
-using V = typename G::vertex_type;
+template <GraphConcept G> using V = typename G::vertex_type;
 
-template <GraphConcept G>
-using Vs = typename G::vertices_type;
+template <GraphConcept G> using Vs = typename G::vertices_type;
+
+template <GraphConcept G> using E = typename G::edge_type;
 
 template <typename T>
 concept UndirGraphConcept = GraphConcept<T> && !T::directed_;

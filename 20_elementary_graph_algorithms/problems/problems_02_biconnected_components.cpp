@@ -49,7 +49,7 @@ int main() {
   cout << '\n';
 
   const auto &bridges = g.get_graph_property<
-      unordered_set<fc::EdgePair<int>, fc::Hash<fc::EdgePair<int>>>>(
+      unordered_set<fc::Edge<int>, fc::Hash<fc::Edge<int>>>>(
       fc::GraphPropertyTag::GraphBCCBridges);
 
   cout << "Bridges:\n";

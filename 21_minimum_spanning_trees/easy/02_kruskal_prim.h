@@ -23,18 +23,16 @@ void mst_kruskal(G &g, const EdgeProperty<V<G>, F> &weight) {
   auto edge_weight_comp = [&](const auto &e1, const auto &e2) {
     return weight[e1] < weight[e2];
   };
-  multiset<EdgePair<V<G>>, decltype(edge_weight_comp)> sorted_edges(
-      edge_weight_comp);
+  multiset<E<G>, decltype(edge_weight_comp)> sorted_edges(edge_weight_comp);
   for (const auto &u : g.vertices()) {
     for (const auto &v : g.adj(u)) {
       sorted_edges.emplace(u, v);
     }
   }
-  auto &mst =
-      g.add_graph_property<vector<EdgePair<V<G>>>>(GraphPropertyTag::GraphMST);
+  auto &mst = g.add_graph_property<SpanningTree<G>>(GraphPropertyTag::GraphMST);
   for (const auto &[u, v] : sorted_edges) {
     if (find_set(parent, u) != find_set(parent, v)) {
-      mst.emplace_back(u, v);
+      mst.emplace(u, v);
       link_by_rank(parent, set_rank, u, v);
     }
   }
@@ -56,8 +54,7 @@ void mst_prim(G &g, const EdgeProperty<V<G>, F> &weight) {
   const auto &r = *g.vertices().begin();
   dist[r] = 0;
 
-  auto &mst =
-      g.add_graph_property<vector<EdgePair<V<G>>>>(GraphPropertyTag::GraphMST);
+  auto &mst = g.add_graph_property<SpanningTree<G>>(GraphPropertyTag::GraphMST);
 
   auto vertex_dist_comp = [&](const auto &v1, const auto &v2) {
     return dist[v1] > dist[v2];
@@ -82,7 +79,7 @@ void mst_prim(G &g, const EdgeProperty<V<G>, F> &weight) {
   }
   for (const auto &u : g.vertices()) {
     if (prev[u].has_value()) {
-      mst.emplace_back(u, *prev[u]);
+      mst.emplace(u, *prev[u]);
     }
   }
 }

@@ -7,14 +7,15 @@
 #include <hashfunction.h>
 #include <typeindex>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace frozenca {
 
 using namespace std;
 
-template <Descriptor V> struct Hash<EdgePair<V>> {
-  size_t operator()(const EdgePair<V> &e) const {
+template <Descriptor V> struct Hash<Edge<V>> {
+  size_t operator()(const Edge<V> &e) const {
     return Hash<V>{}(e.second) + 1234567ULL * Hash<V>{}(e.first);
   }
 };
@@ -96,7 +97,7 @@ private:
 
 template <Descriptor VertexType, typename PropertyType>
 struct EdgeProperty final : public Property {
-  using EdgeType = EdgePair<VertexType>;
+  using EdgeType = Edge<VertexType>;
   using ContainerType = unordered_map<EdgeType, PropertyType, Hash<EdgeType>>;
   PropertyType &operator[](const EdgeType &edge) {
     if (!directed_) {
@@ -130,6 +131,8 @@ struct EdgeProperty final : public Property {
 private:
   ContainerType edge_properties_;
 };
+
+template <GraphConcept G> using SpanningTree = unordered_set<E<G>, Hash<E<G>>>;
 
 template <typename PropertyType> struct GraphProperty final : public Property {
   PropertyType &get() { return graph_property_; }

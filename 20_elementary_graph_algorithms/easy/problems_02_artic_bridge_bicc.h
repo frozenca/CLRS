@@ -40,10 +40,9 @@ void dfs_bcc(G &g, const V<G> &u, VertexProperty<V<G>, VisitMark> &visited,
 }
 
 template <UndirGraphConcept G>
-void dfs_bcc_cloned(
-    G &g, VertexProperty<V<G>, VisitMark> &visited,
-    unordered_set<EdgePair<V<G>>, Hash<EdgePair<V<G>>>> &curr_bcc,
-    const V<G> &origin, const V<G> &source, bool &quit) {
+void dfs_bcc_cloned(G &g, VertexProperty<V<G>, VisitMark> &visited,
+                    unordered_set<E<G>, Hash<E<G>>> &curr_bcc,
+                    const V<G> &origin, const V<G> &source, bool &quit) {
   visited[source] = VisitMark::Visiting;
   while (true) {
     if (g.adj(source).empty() || (source == origin && quit)) {
@@ -92,9 +91,8 @@ template <UndirGraphConcept G> decltype(auto) biconnected_components(G &g) {
   auto &articulation_points = g.add_graph_property<unordered_set<V<G>>>(
       GraphPropertyTag::GraphBCCArticulationPoints);
 
-  auto &bridges =
-      g.add_graph_property<unordered_set<EdgePair<V<G>>, Hash<EdgePair<V<G>>>>>(
-          GraphPropertyTag::GraphBCCBridges);
+  auto &bridges = g.add_graph_property<unordered_set<E<G>, Hash<E<G>>>>(
+      GraphPropertyTag::GraphBCCBridges);
 
   auto &bcc = g.add_edge_property<index_t>(GraphPropertyTag::EdgeBcc);
 
@@ -137,7 +135,7 @@ template <UndirGraphConcept G> decltype(auto) biconnected_components(G &g) {
 
   for (const auto &u : g.vertices()) {
     if (visited[u] == VisitMark::Unvisited) {
-      unordered_set<EdgePair<V<G>>, Hash<EdgePair<V<G>>>> curr_bcc;
+      unordered_set<E<G>, Hash<E<G>>> curr_bcc;
       bool quit = false;
       dfs_bcc_cloned(g_clone, visited, curr_bcc, u, u, quit);
       if (!curr_bcc.empty()) {
