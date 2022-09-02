@@ -46,6 +46,7 @@ enum class GraphPropertyTag : int32_t {
   GraphBCCBridges,
   GraphBipartite,
   GraphEulerTour,
+  GraphMST,
   GraphPath,
   GraphTopSort,
   GraphVisitSort,
@@ -98,11 +99,29 @@ struct EdgeProperty final : public Property {
   using EdgeType = EdgePair<VertexType>;
   using ContainerType = unordered_map<EdgeType, PropertyType, Hash<EdgeType>>;
   PropertyType &operator[](const EdgeType &edge) {
-    return edge_properties_[edge];
+    if (!directed_) {
+      EdgeType edge_ = edge;
+      if (edge_.first > edge_.second) {
+        swap(edge_.first, edge_.second);
+      }
+      return edge_properties_[edge_];
+    } else {
+      return edge_properties_[edge];
+    }
   }
   const PropertyType &operator[](const EdgeType &edge) const {
-    return edge_properties_.at(edge);
+    if (!directed_) {
+      EdgeType edge_ = edge;
+      if (edge_.first > edge_.second) {
+        swap(edge_.first, edge_.second);
+      }
+      return edge_properties_.at(edge_);
+    } else {
+      return edge_properties_.at(edge);
+    }
   }
+
+  bool directed_ = false;
 
   ContainerType &get() { return edge_properties_; }
 

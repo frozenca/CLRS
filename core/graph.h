@@ -83,8 +83,9 @@ public:
   template <typename PropertyType>
   EdgeProperty<vertex_type, PropertyType> &
   add_edge_property(const GraphPropertyTag &tag) {
-    properties_.emplace(tag,
-                        make_unique<EdgeProperty<vertex_type, PropertyType>>());
+    auto prop = make_unique<EdgeProperty<vertex_type, PropertyType>>();
+    prop->directed_ = directed_;
+    properties_.emplace(tag, move(prop));
     return get_edge_property<PropertyType>(tag);
   }
 
@@ -93,6 +94,8 @@ public:
     properties_.emplace(tag, make_unique<GraphProperty<PropertyType>>());
     return get_graph_property<PropertyType>(tag);
   }
+
+  void erase_property(const GraphPropertyTag &tag) { properties_.erase(tag); }
 
   template <typename PropertyType>
   VertexProperty<vertex_type, PropertyType> &
