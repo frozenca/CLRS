@@ -39,9 +39,9 @@ int main() {
   weight[{'d', 'e'}] = 9;
   weight[{'f', 'e'}] = 10;
 
-  fc::mst_kruskal(g, weight);
   auto &mst =
       g.add_graph_property<fc::EdgeSet<G>>(fc::GraphPropertyTag::GraphMST);
+  fc::mst_kruskal(g, weight);
   cout << "Minimum spanning tree:\n";
   for (const auto &[u, v] : mst) {
     cout << u << '-' << v << ": " << weight[{u, v}] << '\n';

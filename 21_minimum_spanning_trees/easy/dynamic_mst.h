@@ -2,6 +2,7 @@
 #define __CLRS4_MST_DYNAMIC_H__
 
 #include <20_elementary_graph_algorithms/easy/03_depth_first_search.h>
+#include <21_minimum_spanning_trees/easy/02_kruskal_prim.h>
 #include <common.h>
 #include <graph.h>
 
@@ -49,7 +50,7 @@ void mst_update_edge(G &g, UndirEdgeProperty<V<G>, F> &weight, const E<G> &e,
                      F w) {
   // Currently, only updates only if e is not in the MST
   // and weight of e is decreasing
-  
+
   auto &mst = g.get_graph_property<EdgeSet<G>>(GraphPropertyTag::GraphMST);
 
   if (!mst.contains(e) && weight[e] > w) {
@@ -64,6 +65,26 @@ void mst_update_edge(G &g, UndirEdgeProperty<V<G>, F> &weight, const E<G> &e,
   } else {
     weight[e] = w;
   }
+}
+
+template <UndirGraphConcept G, Arithmetic F>
+void mst_add_vertex(G &g, UndirEdgeProperty<V<G>, F> &weight,
+                    const unordered_map<E<G>, F, Hash<E<G>>> &incident) {
+
+  auto &mst = g.get_graph_property<EdgeSet<G>>(GraphPropertyTag::GraphMST);
+
+  G g_cloned;
+  for (const auto &e : mst) {
+    g_cloned.add_edge(e.first, e.second);
+  }
+  for (const auto &[e, w] : incident) {
+    g_cloned.add_edge(e.first, e.second);
+    weight[e] = w;
+  }
+  mst_kruskal(g_cloned, weight);
+  const auto &mst_cloned =
+      g_cloned.get_graph_property<EdgeSet<G>>(GraphPropertyTag::GraphMST);
+  mst = mst_cloned;
 }
 
 } // namespace frozenca

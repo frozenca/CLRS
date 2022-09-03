@@ -7,7 +7,7 @@
 int main() {
   namespace fc = frozenca;
   using namespace std;
-  using G = fc::UndirGraph<char>;
+  using G = fc::AdjMatUndirGraph<char>;
   G g;
   g.add_edge('a', 'b');
   g.add_edge('a', 'h');
@@ -40,16 +40,9 @@ int main() {
   weight[{'d', 'e'}] = 9;
   weight[{'f', 'e'}] = 10;
 
+  fc::mst_prim(g, weight);
   auto &mst =
       g.add_graph_property<fc::EdgeSet<G>>(fc::GraphPropertyTag::GraphMST);
-  fc::mst_kruskal(g, weight);
-  cout << "Minimum spanning tree (Kruskal):\n";
-  for (const auto &[u, v] : mst) {
-    cout << u << '-' << v << ": " << weight[{u, v}] << '\n';
-  }
-  mst.clear();
-
-  fc::mst_prim(g, weight);
   cout << "Minimum spanning tree (Prim):\n";
   for (const auto &[u, v] : mst) {
     cout << u << '-' << v << ": " << weight[{u, v}] << '\n';

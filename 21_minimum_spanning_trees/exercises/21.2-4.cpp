@@ -24,7 +24,8 @@ int main() {
   g.add_edge('d', 'e');
   g.add_edge('f', 'e');
 
-  auto &weight = g.add_edge_property<int>(fc::GraphPropertyTag::EdgeWeight);
+  auto &weight =
+      g.add_edge_property<fc::index_t>(fc::GraphPropertyTag::EdgeWeight);
   weight[{'a', 'b'}] = 4;
   weight[{'a', 'h'}] = 8;
   weight[{'b', 'h'}] = 11;
@@ -40,17 +41,10 @@ int main() {
   weight[{'d', 'e'}] = 9;
   weight[{'f', 'e'}] = 10;
 
+  fc::mst_kruskal_discretized(g, weight);
   auto &mst =
-      g.add_graph_property<fc::EdgeSet<G>>(fc::GraphPropertyTag::GraphMST);
-  fc::mst_kruskal(g, weight);
+      g.get_graph_property<fc::EdgeSet<G>>(fc::GraphPropertyTag::GraphMST);
   cout << "Minimum spanning tree (Kruskal):\n";
-  for (const auto &[u, v] : mst) {
-    cout << u << '-' << v << ": " << weight[{u, v}] << '\n';
-  }
-  mst.clear();
-
-  fc::mst_prim(g, weight);
-  cout << "Minimum spanning tree (Prim):\n";
   for (const auto &[u, v] : mst) {
     cout << u << '-' << v << ": " << weight[{u, v}] << '\n';
   }
