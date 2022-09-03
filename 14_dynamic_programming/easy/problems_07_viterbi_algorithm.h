@@ -22,7 +22,7 @@ struct Sound {
 using SoundGraph = DirGraph<int>;
 using SequenceIter = vector<string_view>::const_iterator;
 
-bool viterbi_get_path(DirGraph<int> &g, const EdgeProperty<int, Sound> &sound,
+bool viterbi_get_path(DirGraph<int> &g, const DirEdgeProperty<int, Sound> &sound,
                       SequenceIter s_first, SequenceIter s_last, int curr_index,
                       vector<int> &succ) {
   if (s_first == s_last) {
@@ -63,7 +63,7 @@ vector<int> viterbi_path(DirGraph<int> &g, int src,
 }
 
 float viterbi_get_optimal_path(DirGraph<int> &g,
-                               const EdgeProperty<int, Sound> &sound,
+                               const DirEdgeProperty<int, Sound> &sound,
                                SequenceIter s_first, SequenceIter s_last,
                                int curr_index) {
   if (s_first == s_last) {

@@ -13,6 +13,7 @@ template <GraphConcept G> void init_properties_dfs(G &g) {
       g.add_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
   auto &d = g.add_vertex_property<index_t>(GraphPropertyTag::VertexTime);
   auto &f = g.add_vertex_property<index_t>(GraphPropertyTag::VertexTimeFinish);
+  g.erase_property(GraphPropertyTag::VertexParent);
   auto &pred =
       g.add_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
   auto &cc = g.add_vertex_property<index_t>(GraphPropertyTag::VertexComponent);
@@ -33,9 +34,8 @@ void dfs_visit(G &g, const V<G> &u, VertexProperty<V<G>, VisitMark> &visited,
                VertexProperty<V<G>, index_t> &d,
                VertexProperty<V<G>, index_t> &f,
                VertexProperty<V<G>, optional<V<G>>> &pred,
-               VertexProperty<V<G>, index_t> &cc,
-               vector<V<G>> &finish_order, index_t &time,
-               index_t &curr_cc, bool print) {
+               VertexProperty<V<G>, index_t> &cc, vector<V<G>> &finish_order,
+               index_t &time, index_t &curr_cc, bool print) {
   time++;
   d[u] = time;
   visited[u] = VisitMark::Visiting;
@@ -54,7 +54,8 @@ void dfs_visit(G &g, const V<G> &u, VertexProperty<V<G>, VisitMark> &visited,
     }
     if (visited[v] == VisitMark::Unvisited) {
       pred[v] = u;
-      dfs_visit(g, v, visited, d, f, pred, cc, finish_order, time, curr_cc, print);
+      dfs_visit(g, v, visited, d, f, pred, cc, finish_order, time, curr_cc,
+                print);
     }
   }
   time++;

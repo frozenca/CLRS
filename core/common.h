@@ -65,6 +65,31 @@ bool operator!=(const Edge<Vertex> &e1, const Edge<Vertex> &e2) {
   return !(e1 == e2);
 }
 
+template <Descriptor Vertex> struct UndirectedEdge {
+  Vertex first;
+  Vertex second;
+};
+
+template <Descriptor Vertex>
+bool operator==(const UndirectedEdge<Vertex> &e1_,
+                const UndirectedEdge<Vertex> &e2_) {
+  auto e1 = e1_;
+  auto e2 = e2_;
+  if (e1.first > e1.second) {
+    swap(e1.first, e1.second);
+  }
+  if (e2.first > e2.second) {
+    swap(e2.first, e2.second);
+  }
+  return e1.first == e2.first && e1.second == e2.second;
+}
+
+template <Descriptor Vertex>
+bool operator!=(const UndirectedEdge<Vertex> &e1,
+                const UndirectedEdge<Vertex> &e2) {
+  return !(e1 == e2);
+}
+
 template <typename T>
 concept GraphConcept = T::is_graph_;
 

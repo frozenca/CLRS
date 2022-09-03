@@ -13,7 +13,7 @@ namespace frozenca {
 using namespace std;
 
 template <UndirGraphConcept G, Arithmetic F>
-void mst_kruskal(G &g, const EdgeProperty<V<G>, F> &weight) {
+void mst_kruskal(G &g, const UndirEdgeProperty<V<G>, F> &weight) {
   g.erase_property(GraphPropertyTag::VertexParent);
   auto &parent = g.add_vertex_property<V<G>>(GraphPropertyTag::VertexParent);
   auto &set_rank = g.add_vertex_property<int>(GraphPropertyTag::VertexRank);
@@ -29,7 +29,7 @@ void mst_kruskal(G &g, const EdgeProperty<V<G>, F> &weight) {
       sorted_edges.emplace(u, v);
     }
   }
-  auto &mst = g.add_graph_property<SpanningTree<G>>(GraphPropertyTag::GraphMST);
+  auto &mst = g.add_graph_property<EdgeSet<G>>(GraphPropertyTag::GraphMST);
   for (const auto &[u, v] : sorted_edges) {
     if (find_set(parent, u) != find_set(parent, v)) {
       mst.emplace(u, v);
@@ -39,7 +39,7 @@ void mst_kruskal(G &g, const EdgeProperty<V<G>, F> &weight) {
 }
 
 template <UndirGraphConcept G, Arithmetic F>
-void mst_prim(G &g, const EdgeProperty<V<G>, F> &weight) {
+void mst_prim(G &g, const UndirEdgeProperty<V<G>, F> &weight) {
   if (g.empty()) {
     return;
   }
@@ -54,7 +54,7 @@ void mst_prim(G &g, const EdgeProperty<V<G>, F> &weight) {
   const auto &r = *g.vertices().begin();
   dist[r] = 0;
 
-  auto &mst = g.add_graph_property<SpanningTree<G>>(GraphPropertyTag::GraphMST);
+  auto &mst = g.add_graph_property<EdgeSet<G>>(GraphPropertyTag::GraphMST);
 
   auto vertex_dist_comp = [&](const auto &v1, const auto &v2) {
     return dist[v1] > dist[v2];

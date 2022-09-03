@@ -20,6 +20,17 @@ template <Descriptor V> struct Hash<Edge<V>> {
   }
 };
 
+template <Descriptor V> struct Hash<UndirectedEdge<V>> {
+  size_t operator()(const UndirectedEdge<V> &e) const {
+    auto f = e.first;
+    auto s = e.second;
+    if (f > s) {
+      swap(f, s);
+    }
+    return Hash<V>{}(s) + 1234567ULL * Hash<V>{}(f);
+  }
+};
+
 enum class GraphPropertyTag : int32_t {
   VertexBackSet,
   VertexChildren,
@@ -95,12 +106,13 @@ private:
   ContainerType vertex_properties_;
 };
 
-template <Descriptor VertexType, typename PropertyType>
+template <Descriptor VertexType, bool Directed, typename PropertyType>
 struct EdgeProperty final : public Property {
-  using EdgeType = Edge<VertexType>;
+  using EdgeType =
+      conditional_t<Directed, Edge<VertexType>, UndirectedEdge<VertexType>>;
   using ContainerType = unordered_map<EdgeType, PropertyType, Hash<EdgeType>>;
   PropertyType &operator[](const EdgeType &edge) {
-    if (!directed_) {
+    if (!Directed) {
       EdgeType edge_ = edge;
       if (edge_.first > edge_.second) {
         swap(edge_.first, edge_.second);
@@ -111,7 +123,7 @@ struct EdgeProperty final : public Property {
     }
   }
   const PropertyType &operator[](const EdgeType &edge) const {
-    if (!directed_) {
+    if (!Directed) {
       EdgeType edge_ = edge;
       if (edge_.first > edge_.second) {
         swap(edge_.first, edge_.second);
@@ -122,8 +134,6 @@ struct EdgeProperty final : public Property {
     }
   }
 
-  bool directed_ = false;
-
   ContainerType &get() { return edge_properties_; }
 
   const ContainerType &get() const { return edge_properties_; }
@@ -132,7 +142,13 @@ private:
   ContainerType edge_properties_;
 };
 
-template <GraphConcept G> using SpanningTree = unordered_set<E<G>, Hash<E<G>>>;
+template <Descriptor VertexType, typename PropertyType>
+using DirEdgeProperty = EdgeProperty<VertexType, true, PropertyType>;
+
+template <Descriptor VertexType, typename PropertyType>
+using UndirEdgeProperty = EdgeProperty<VertexType, false, PropertyType>;
+
+template <GraphConcept G> using EdgeSet = unordered_set<E<G>, Hash<E<G>>>;
 
 template <typename PropertyType> struct GraphProperty final : public Property {
   PropertyType &get() { return graph_property_; }

@@ -25,8 +25,9 @@ public:
   using vertex_type = TraitBase::vertex_type;
   using vertices_type = TraitBase::vertices_type;
   using vertex_iterator_type = TraitBase::vertex_iterator_type;
-  using edge_type = TraitBase::edge_type;
   static constexpr bool directed_ = TraitBase::directed_;
+  using edge_type =
+      conditional_t<directed_, Edge<vertex_type>, UndirectedEdge<vertex_type>>;
   static constexpr bool multi_ = TraitBase::multi_;
   static constexpr bool is_graph_ = true;
 
@@ -81,10 +82,10 @@ public:
   }
 
   template <typename PropertyType>
-  EdgeProperty<vertex_type, PropertyType> &
+  EdgeProperty<vertex_type, directed_, PropertyType> &
   add_edge_property(const GraphPropertyTag &tag) {
-    auto prop = make_unique<EdgeProperty<vertex_type, PropertyType>>();
-    prop->directed_ = directed_;
+    auto prop =
+        make_unique<EdgeProperty<vertex_type, directed_, PropertyType>>();
     properties_.emplace(tag, move(prop));
     return get_edge_property<PropertyType>(tag);
   }
@@ -112,16 +113,17 @@ public:
   }
 
   template <typename PropertyType>
-  EdgeProperty<vertex_type, PropertyType> &
+  EdgeProperty<vertex_type, directed_, PropertyType> &
   get_edge_property(const GraphPropertyTag &tag) {
-    return dynamic_cast<EdgeProperty<vertex_type, PropertyType> &>(
+    return dynamic_cast<EdgeProperty<vertex_type, directed_, PropertyType> &>(
         *properties_.at(tag));
   }
 
   template <typename PropertyType>
-  const EdgeProperty<vertex_type, PropertyType> &
+  const EdgeProperty<vertex_type, directed_, PropertyType> &
   get_edge_property(const GraphPropertyTag &tag) const {
-    return dynamic_cast<const EdgeProperty<vertex_type, PropertyType> &>(
+    return dynamic_cast<
+        const EdgeProperty<vertex_type, directed_, PropertyType> &>(
         *properties_.at(tag));
   }
 
@@ -146,14 +148,14 @@ template <Descriptor VertexType, bool Directed, bool Multi,
           typename ContainerTraitTag>
 struct GraphTraitsImpl
     : public ContainerTraitTag::template Trait<
-          VertexType, Multi,
+          VertexType, Directed, Multi,
           GraphTraitsImpl<VertexType, Directed, Multi, ContainerTraitTag>> {
   using vertex_type = VertexType;
   using Base = ContainerTraitTag::template Trait<
-      VertexType, Multi,
+      VertexType, Directed, Multi,
       GraphTraitsImpl<VertexType, Directed, Multi, ContainerTraitTag>>;
-  inline static constexpr bool directed_ = Directed;
-  inline static constexpr bool multi_ = Multi;
+  static constexpr bool directed_ = Directed;
+  static constexpr bool multi_ = Multi;
 
   using Base::add_vertex;
   using Base::adj;
@@ -188,16 +190,18 @@ struct GraphTraits {
   using Impl = GraphTraitsImpl<VertexType, Directed, Multi, ContainerTraitTag>;
 };
 
-template <Descriptor Vertex, bool Multi, typename Derived> struct AdjSetTraits {
+template <Descriptor Vertex, bool Directed, bool Multi, typename Derived>
+struct AdjSetTraits {
   using vertex_type = Vertex;
   using vertices_type = unordered_set<vertex_type>;
   using vertex_iterator_type = vertices_type::iterator;
 
-  using edge_type = Edge<Vertex>;
   using adj_list_type = conditional_t<Multi, unordered_multiset<vertex_type>,
                                       unordered_set<vertex_type>>;
   using adj_iterator_type = adj_list_type::iterator;
   using const_adj_iterator_type = adj_list_type::const_iterator;
+  using edge_type =
+      conditional_t<Directed, Edge<Vertex>, UndirectedEdge<Vertex>>;
   using edges_type = unordered_map<vertex_type, adj_list_type>;
 
   vertices_type vertices_;
@@ -253,19 +257,21 @@ template <Descriptor Vertex, bool Multi, typename Derived> struct AdjSetTraits {
 };
 
 struct AdjSetTraitTag {
-  template <Descriptor VertexType, bool Multi, typename Derived>
-  using Trait = AdjSetTraits<VertexType, Multi, Derived>;
+  template <Descriptor VertexType, bool Directed, bool Multi, typename Derived>
+  using Trait = AdjSetTraits<VertexType, Directed, Multi, Derived>;
 };
 
-template <Descriptor Vertex, typename Derived> struct AdjListTraits {
+template <Descriptor Vertex, bool Directed, typename Derived>
+struct AdjListTraits {
   using vertex_type = Vertex;
   using vertices_type = unordered_set<vertex_type>;
   using vertex_iterator_type = vertices_type::iterator;
 
-  using edge_type = Edge<Vertex>;
   using adj_list_type = list<vertex_type>;
   using adj_iterator_type = adj_list_type::iterator;
   using const_adj_iterator_type = adj_list_type::const_iterator;
+  using edge_type =
+      conditional_t<Directed, Edge<Vertex>, UndirectedEdge<Vertex>>;
   using edges_type = unordered_map<vertex_type, adj_list_type>;
 
   vertices_type vertices_;
@@ -317,8 +323,8 @@ template <Descriptor Vertex, typename Derived> struct AdjListTraits {
 };
 
 struct AdjListTraitTag {
-  template <Descriptor VertexType, bool Multi, typename Derived>
-  using Trait = AdjListTraits<VertexType, Derived>;
+  template <Descriptor VertexType, bool Directed, bool Multi, typename Derived>
+  using Trait = AdjListTraits<VertexType, Directed, Derived>;
 };
 
 template <Descriptor V, bool Const>
@@ -426,13 +432,14 @@ requires(is_integral_v<V>) struct AdjMatIterator {
   }
 };
 
-template <Descriptor Vertex, typename Derived>
+template <Descriptor Vertex, bool Directed, typename Derived>
 requires(is_integral_v<Vertex>) struct AdjMatTraits {
   using vertex_type = Vertex;
   using vertices_type = vector<Vertex>;
   using vertex_iterator_type = vertices_type::iterator;
 
-  using edge_type = Edge<Vertex>;
+  using edge_type =
+      conditional_t<Directed, Edge<Vertex>, UndirectedEdge<Vertex>>;
   using edges_type = vector<char>;
   using adj_iterator_type = AdjMatIterator<Vertex, false>;
   using const_adj_iterator_type = AdjMatIterator<Vertex, true>;
@@ -512,8 +519,8 @@ requires(is_integral_v<Vertex>) struct AdjMatTraits {
 };
 
 struct AdjMatTraitTag {
-  template <Descriptor VertexType, bool Multi, typename Derived>
-  requires(!Multi) using Trait = AdjMatTraits<VertexType, Derived>;
+  template <Descriptor VertexType, bool Directed, bool Multi, typename Derived>
+  requires(!Multi) using Trait = AdjMatTraits<VertexType, Directed, Derived>;
 };
 
 template <Descriptor VertexType>
