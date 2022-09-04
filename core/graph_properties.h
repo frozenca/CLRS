@@ -49,6 +49,7 @@ enum class GraphPropertyTag : int32_t {
   VertexTimeLow,
   VertexTimeHigh,
   VertexTimeFinish,
+  VertexValue,
   VertexVisited,
   VertexWeight,
   EdgeBcc,
@@ -60,6 +61,7 @@ enum class GraphPropertyTag : int32_t {
   GraphEulerTour,
   GraphMST,
   GraphPath,
+  GraphSecondMST,
   GraphTopSort,
   GraphVisitSort,
 };

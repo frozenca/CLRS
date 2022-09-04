@@ -113,6 +113,17 @@ void mst_kruskal_bucket(G &g, const UndirEdgeProperty<V<G>, float> &weight) {
   }
 }
 
+template <UndirGraphConcept G> V<G> select_root(G &g) {
+  V<G> r = {};
+  for (const auto &v : g.vertices()) {
+    if (!g.adj(v).empty()) {
+      r = v;
+      break;
+    }
+  }
+  return r;
+}
+
 template <UndirGraphConcept G, Arithmetic F>
 void mst_prim(G &g, const UndirEdgeProperty<V<G>, F> &weight) {
   if (g.empty()) {
@@ -127,13 +138,7 @@ void mst_prim(G &g, const UndirEdgeProperty<V<G>, F> &weight) {
     prev[u] = nullopt;
     dist[u] = numeric_limits<F>::max();
   }
-  V<G> r;
-  for (const auto &v : g.vertices()) {
-    if (!g.adj(v).empty()) {
-      r = v;
-      break;
-    }
-  }
+  auto r = select_root(g);
   dist[r] = 0;
 
   auto &mst = g.add_graph_property<EdgeSet<G>>(GraphPropertyTag::GraphMST);

@@ -12,5 +12,6 @@
 #include <20_elementary_graph_algorithms/easy/problems_05_vertex_query_planar_graphs.h>
 #include <21_minimum_spanning_trees/easy/02_kruskal_prim.h>
 #include <21_minimum_spanning_trees/easy/dynamic_mst.h>
+#include <21_minimum_spanning_trees/easy/problems_01_second_best_mst.h>
 
 #endif //__CLRS4_GRAPH_ALGORITHMS_H__
