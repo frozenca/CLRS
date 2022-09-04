@@ -5,6 +5,7 @@
 #include <21_minimum_spanning_trees/easy/dynamic_mst.h>
 #include <21_minimum_spanning_trees/easy/problems_01_second_best_mst.h>
 #include <21_minimum_spanning_trees/easy/problems_02_mst_reduce.h>
+#include <21_minimum_spanning_trees/easy/problems_03_maybe_mst.h>
 #include <test.h>
 #include <util.h>
 

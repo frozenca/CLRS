@@ -132,6 +132,51 @@ template <UndirGraphConcept G> bool has_cycle(G &g) {
   return false;
 }
 
+template <GraphConcept G>
+EdgeSet<G> dfs_get_cycle(G &g, const V<G> &u,
+                         VertexProperty<V<G>, VisitMark> &visited,
+                         VertexProperty<V<G>, optional<V<G>>> &pred) {
+  visited[u] = VisitMark::Visiting;
+  for (const auto &v : g.adj(u)) {
+    if (visited[v] == VisitMark::Unvisited) {
+      pred[v] = u;
+      auto curr_cycle = dfs_get_cycle(g, v, visited, pred);
+      if (!curr_cycle.empty()) {
+        return curr_cycle;
+      }
+    } else if (visited[v] == VisitMark::Visiting && *pred[u] != v) {
+      EdgeSet<G> cycle;
+      cycle.emplace(v, u);
+      cycle.emplace(u, *pred[u]);
+      auto curr = *pred[u];
+      while (curr != v && pred[curr].has_value()) {
+        cycle.emplace(curr, *pred[curr]);
+        curr = *pred[curr];
+      }
+      return cycle;
+    }
+  }
+  visited[u] = VisitMark::Visited;
+  return {};
+}
+
+template <UndirGraphConcept G> EdgeSet<G> get_cycle(G &g) {
+  init_properties_dfs(g);
+  auto &visited =
+      g.get_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
+  auto &pred =
+      g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
+  for (const auto &u : g.vertices()) {
+    if (visited[u] == VisitMark::Unvisited) {
+      auto curr_cycle = dfs_get_cycle(g, u, visited, pred);
+      if (!curr_cycle.empty()) {
+        return curr_cycle;
+      }
+    }
+  }
+  return {};
+}
+
 template <GraphConcept G> void dfs_iterative(G &g) {
   init_properties_dfs(g);
   auto &visited =
@@ -208,6 +253,39 @@ template <DirGraphConcept G> bool is_singly_connected(G &g) {
           f[v] = time;
         }
       }
+    }
+  }
+  return true;
+}
+
+template <GraphConcept G> bool is_connected(G &g) {
+  init_properties_dfs(g);
+  auto &visited =
+      g.get_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
+  bool is_first = true;
+  for (const auto &u : g.vertices()) {
+    if (visited[u] == VisitMark::Unvisited) {
+      if (!is_first) {
+        return false;
+      }
+      vector<V<G>> s;
+      s.push_back(u);
+      while (!s.empty()) {
+        auto v = s.back();
+        visited[v] = VisitMark::Visiting;
+        bool finished = true;
+        for (const auto &w : g.adj(v)) {
+          if (visited[w] == VisitMark::Unvisited) {
+            s.push_back(w);
+            finished = false;
+          }
+        }
+        if (finished) {
+          s.pop_back();
+          visited[v] = VisitMark::Visited;
+        }
+      }
+      is_first = false;
     }
   }
   return true;
