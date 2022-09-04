@@ -233,6 +233,9 @@ struct AdjSetTraits {
   }
 
   [[nodiscard]] bool has_edge(const edge_type &edge) const {
+    if (!vertices_.contains(edge.first) || !vertices_.contains(edge.second)) {
+      return false;
+    }
     auto edge_range = adj(edge.first);
     return ranges::find(edge_range, edge.second) != edge_range.end();
   }

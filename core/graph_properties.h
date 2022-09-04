@@ -53,6 +53,7 @@ enum class GraphPropertyTag : int32_t {
   VertexVisited,
   VertexWeight,
   EdgeBcc,
+  EdgeOrigin,
   EdgeOrientation,
   EdgeWeight,
   GraphBCCArticulationPoints,
