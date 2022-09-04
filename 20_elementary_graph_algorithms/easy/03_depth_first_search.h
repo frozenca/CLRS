@@ -291,6 +291,46 @@ template <GraphConcept G> bool is_connected(G &g) {
   return true;
 }
 
+template <GraphConcept G> bool get_spanning_forest(G &g) {
+  auto &visited =
+      g.add_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);
+  bool is_first = true;
+  bool is_connected = true;
+  auto &forest =
+      g.add_graph_property<EdgeSet<G>>(GraphPropertyTag::GraphSpanningForest);
+  auto &cc_repr =
+      g.add_vertex_property<V<G>>(GraphPropertyTag::VertexComponent);
+  for (const auto &u : g.vertices()) {
+    if (visited[u] == VisitMark::Unvisited) {
+      if (!is_first) {
+        is_connected = false;
+      }
+      vector<V<G>> s;
+      s.push_back(u);
+      visited[u] = VisitMark::Visiting;
+      while (!s.empty()) {
+        auto v = s.back();
+        cc_repr[v] = u;
+        bool finished = true;
+        for (const auto &w : g.adj(v)) {
+          if (visited[w] == VisitMark::Unvisited) {
+            forest.emplace(v, w);
+            visited[w] = VisitMark::Visiting;
+            s.push_back(w);
+            finished = false;
+          }
+        }
+        if (finished) {
+          s.pop_back();
+          visited[v] = VisitMark::Visited;
+        }
+      }
+      is_first = false;
+    }
+  }
+  return is_connected;
+}
+
 } // namespace frozenca
 
 #endif //__CLRS4_DFS_H__

@@ -11,7 +11,6 @@ using namespace std;
 
 template <UndirGraphConcept G, Arithmetic F>
 void mst_reduce(G &g, const UndirEdgeProperty<V<G>, F> &weight) {
-  G g_contract;
   auto &mst = g.add_graph_property<EdgeSet<G>>(GraphPropertyTag::GraphMST);
   mst.clear();
   g.erase_property(GraphPropertyTag::VertexParent);
@@ -42,6 +41,7 @@ void mst_reduce(G &g, const UndirEdgeProperty<V<G>, F> &weight) {
     }
   }
 
+  G g_contract;
   auto &edge_origin =
       g_contract.add_edge_property<E<G>>(GraphPropertyTag::EdgeOrigin);
   auto &weight_contract =

@@ -14,5 +14,6 @@
 #include <21_minimum_spanning_trees/easy/dynamic_mst.h>
 #include <21_minimum_spanning_trees/easy/problems_01_second_best_mst.h>
 #include <21_minimum_spanning_trees/easy/problems_02_mst_reduce.h>
+#include <21_minimum_spanning_trees/easy/problems_04_bottleneck_spanning_tree.h>
 
 #endif //__CLRS4_GRAPH_ALGORITHMS_H__

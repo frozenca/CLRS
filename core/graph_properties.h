@@ -60,9 +60,11 @@ enum class GraphPropertyTag : int32_t {
   GraphBCCBridges,
   GraphBipartite,
   GraphEulerTour,
+  GraphMBST,
   GraphMST,
   GraphPath,
   GraphSecondMST,
+  GraphSpanningForest,
   GraphTopSort,
   GraphVisitSort,
 };
