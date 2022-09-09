@@ -22,6 +22,19 @@ void initialize_single_source(G &g, const V<G> &s) {
   d[s] = 0;
 }
 
+template <DirGraphConcept G, Arithmetic F>
+void initialize_single_source_zero(G &g, const V<G> &s) {
+  auto &d = g.add_vertex_property<F>(GraphPropertyTag::VertexDistance);
+  g.erase_property(GraphPropertyTag::VertexParent);
+  auto &pred =
+      g.add_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
+  for (const auto &v : g.vertices()) {
+    d[v] = 0;
+    pred[v] = nullopt;
+  }
+  d[s] = 0;
+}
+
 template <Descriptor V, Arithmetic F>
 void relax(const V &u, const V &v, const DirEdgeProperty<V, F> &w,
            VertexProperty<V, F> &d, VertexProperty<V, optional<V>> &pred,
@@ -30,6 +43,21 @@ void relax(const V &u, const V &v, const DirEdgeProperty<V, F> &w,
     return;
   }
   auto alt = d[u] + w[{u, v}];
+  if (d[v] > alt) {
+    d[v] = alt;
+    pred[v] = u;
+    change = true;
+  }
+}
+
+template <Descriptor V, Arithmetic F>
+void relax_floor(const V &u, const V &v, const DirEdgeProperty<V, F> &w,
+                 VertexProperty<V, F> &d, VertexProperty<V, optional<V>> &pred,
+                 bool &change) {
+  if (d[u] == numeric_limits<F>::max()) {
+    return;
+  }
+  auto alt = floor(d[u] + w[{u, v}]);
   if (d[v] > alt) {
     d[v] = alt;
     pred[v] = u;

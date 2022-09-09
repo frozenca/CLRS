@@ -38,6 +38,98 @@ bool bellman_ford(G &g, const DirEdgeProperty<V<G>, F> &w, const V<G> &s) {
 }
 
 template <DirGraphConcept G, Arithmetic F>
+bool bellman_ford_constraint(G &g, const DirEdgeProperty<V<G>, F> &w,
+                             const V<G> &s) {
+  initialize_single_source_zero<G, F>(g, s);
+  auto &d = g.get_vertex_property<F>(GraphPropertyTag::VertexDistance);
+  auto &pred =
+      g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
+  bool change = true;
+  for (index_t i = 0; i < ssize(g) - 1; ++i) {
+    change = false;
+    for (const auto &u : g.vertices()) {
+      for (const auto &v : g.adj(u)) {
+        relax(u, v, w, d, pred, change);
+      }
+    }
+    if (!change) {
+      break;
+    }
+  }
+  for (const auto &u : g.vertices()) {
+    for (const auto &v : g.adj(u)) {
+      if (d[v] > d[u] + w[{u, v}]) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+template <DirGraphConcept G, Arithmetic F>
+bool bellman_ford_round(G &g, const DirEdgeProperty<V<G>, F> &w,
+                        const V<G> &s) {
+  initialize_single_source_zero<G, F>(g, s);
+  auto &d = g.get_vertex_property<F>(GraphPropertyTag::VertexDistance);
+  auto &pred =
+      g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
+  bool change = true;
+  for (index_t i = 0; i < ssize(g) - 1; ++i) {
+    change = false;
+    for (const auto &u : g.vertices()) {
+      for (const auto &v : g.adj(u)) {
+        relax_floor(u, v, w, d, pred, change);
+      }
+    }
+    if (!change) {
+      break;
+    }
+  }
+  for (const auto &u : g.vertices()) {
+    for (const auto &v : g.adj(u)) {
+      if (d[v] > d[u] + w[{u, v}]) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+
+template <DirGraphConcept G, Arithmetic F>
+bool bellman_ford_round_selective(G &g, const DirEdgeProperty<V<G>, F> &w,
+                        const V<G> &s, const unordered_set<V<G>>& to_round) {
+  initialize_single_source_zero<G, F>(g, s);
+  auto &d = g.get_vertex_property<F>(GraphPropertyTag::VertexDistance);
+  auto &pred =
+      g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
+  bool change = true;
+  for (index_t i = 0; i < ssize(g) - 1; ++i) {
+    change = false;
+    for (const auto &u : g.vertices()) {
+      for (const auto &v : g.adj(u)) {
+        if (to_round.contains(v)) {
+          relax_floor(u, v, w, d, pred, change);
+        } else {
+          relax(u, v, w, d, pred, change);
+        }
+      }
+    }
+    if (!change) {
+      break;
+    }
+  }
+  for (const auto &u : g.vertices()) {
+    for (const auto &v : g.adj(u)) {
+      if (d[v] > d[u] + w[{u, v}]) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+template <DirGraphConcept G, Arithmetic F>
 bool bellman_ford_relax_inf(G &g, const DirEdgeProperty<V<G>, F> &w,
                             const V<G> &s) {
   initialize_single_source<G, F>(g, s);
