@@ -18,6 +18,7 @@
 #include <22_single-source_shortest_paths/easy/01_bellman-ford.h>
 #include <22_single-source_shortest_paths/easy/02_sssp_dag.h>
 #include <22_single-source_shortest_paths/easy/03_dijkstra.h>
+#include <22_single-source_shortest_paths/easy/problem_01_yen_bellman_ford.h>
 #include <22_single-source_shortest_paths/easy/sssp.h>
 
 #endif //__CLRS4_GRAPH_ALGORITHMS_H__

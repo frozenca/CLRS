@@ -4,6 +4,7 @@
 #include <common.h>
 #include <graph.h>
 #include <limits>
+#include <optional>
 
 namespace frozenca {
 
