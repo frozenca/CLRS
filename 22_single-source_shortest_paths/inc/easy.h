@@ -3,6 +3,7 @@
 
 #include <22_single-source_shortest_paths/easy/01_bellman-ford.h>
 #include <22_single-source_shortest_paths/easy/02_sssp_dag.h>
+#include <22_single-source_shortest_paths/easy/03_dijkstra.h>
 #include <22_single-source_shortest_paths/easy/sssp.h>
 #include <test.h>
 #include <util.h>
