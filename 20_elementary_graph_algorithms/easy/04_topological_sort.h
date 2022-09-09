@@ -80,6 +80,27 @@ index_t count_simple_paths(DirGraph<V> &g, const V &u, const V &v) {
   return count_simple_paths(g, u, v, num_paths);
 }
 
+template <Descriptor V> index_t count_all_paths(DirGraph<V> &g) {
+  auto &num_paths =
+      g.add_vertex_property<index_t>(GraphPropertyTag::VertexSize);
+  for (const auto &vertex : g.vertices()) {
+    num_paths[vertex] = 0;
+  }
+  topological_sort(g);
+  const auto &top_sort =
+      g.get_graph_property<list<V>>(GraphPropertyTag::GraphTopSort);
+  for (const auto &u : top_sort) {
+    for (const auto &v : g.adj(u)) {
+      num_paths[v] += num_paths[u] + 1;
+    }
+  }
+  index_t sum = 0;
+  for (const auto &u : g.vertices()) {
+    sum += num_paths[u];
+  }
+  return sum;
+}
+
 template <Descriptor V> bool topological_sort_kahn(DirGraph<V> &g) {
   auto &indegree =
       g.add_vertex_property<index_t>(GraphPropertyTag::VertexIndegree);

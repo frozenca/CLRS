@@ -26,6 +26,9 @@ template <Descriptor V, Arithmetic F>
 void relax(const V &u, const V &v, const DirEdgeProperty<V, F> &w,
            VertexProperty<V, F> &d, VertexProperty<V, optional<V>> &pred,
            bool &change) {
+  if (d[u] == numeric_limits<F>::max()) {
+    return;
+  }
   auto alt = d[u] + w[{u, v}];
   if (d[v] > alt) {
     d[v] = alt;
