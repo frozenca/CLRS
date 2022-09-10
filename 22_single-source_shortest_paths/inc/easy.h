@@ -10,6 +10,7 @@
 #include <22_single-source_shortest_paths/easy/problem_03_arbitrage.h>
 #include <22_single-source_shortest_paths/easy/problem_04_gabow_scaling.h>
 #include <22_single-source_shortest_paths/easy/problem_05_minimum_mean_weight_cycle.h>
+#include <22_single-source_shortest_paths/easy/problem_06_bitonic_shortest_paths.h>
 #include <test.h>
 #include <util.h>
 
