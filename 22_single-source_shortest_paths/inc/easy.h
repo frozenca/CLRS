@@ -8,6 +8,7 @@
 #include <22_single-source_shortest_paths/easy/problem_01_yen_bellman_ford.h>
 #include <22_single-source_shortest_paths/easy/problem_02_nesting_boxes.h>
 #include <22_single-source_shortest_paths/easy/problem_03_arbitrage.h>
+#include <22_single-source_shortest_paths/easy/problem_04_gabow_scaling.h>
 #include <test.h>
 #include <util.h>
 
