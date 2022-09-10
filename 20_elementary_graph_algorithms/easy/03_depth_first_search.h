@@ -116,7 +116,7 @@ bool dfs_check_cycle(G &g, const V<G> &u,
   return false;
 }
 
-template <UndirGraphConcept G> bool has_cycle(G &g) {
+template <GraphConcept G> bool has_cycle(G &g) {
   init_properties_dfs(g);
   auto &visited =
       g.get_vertex_property<VisitMark>(GraphPropertyTag::VertexVisited);

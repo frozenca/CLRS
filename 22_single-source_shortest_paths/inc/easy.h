@@ -9,6 +9,7 @@
 #include <22_single-source_shortest_paths/easy/problem_02_nesting_boxes.h>
 #include <22_single-source_shortest_paths/easy/problem_03_arbitrage.h>
 #include <22_single-source_shortest_paths/easy/problem_04_gabow_scaling.h>
+#include <22_single-source_shortest_paths/easy/problem_05_minimum_mean_weight_cycle.h>
 #include <test.h>
 #include <util.h>
 
