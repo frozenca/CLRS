@@ -3,6 +3,7 @@
 
 #include <23_all-pairs_shortest_paths/easy/01_shortest_paths_matmul.h>
 #include <23_all-pairs_shortest_paths/easy/02_floyd_warshall.h>
+#include <23_all-pairs_shortest_paths/easy/03_johnson.h>
 #include <test.h>
 #include <util.h>
 

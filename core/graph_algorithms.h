@@ -23,5 +23,6 @@
 #include <22_single-source_shortest_paths/easy/problem_05_minimum_mean_weight_cycle.h>
 #include <23_all-pairs_shortest_paths/easy/01_shortest_paths_matmul.h>
 #include <23_all-pairs_shortest_paths/easy/02_floyd_warshall.h>
+#include <23_all-pairs_shortest_paths/easy/03_johnson.h>
 
 #endif //__CLRS4_GRAPH_ALGORITHMS_H__
