@@ -2,6 +2,7 @@
 #define __CLRS4_DIJKSTRA_H__
 
 #include "sssp.h"
+#include <06_heapsort/easy/problems_02_analysis_of_d-ary_heaps.h>
 #include <20_elementary_graph_algorithms/easy/02_breadth_first_search.h>
 #include <common.h>
 #include <graph.h>
@@ -31,6 +32,29 @@ void dijkstra(G &g, const DirEdgeProperty<V<G>, F> &w, const V<G> &s) {
       relax(u, v, w, d, pred, change);
       if (change) {
         pq.emplace(d[v], v);
+      }
+    }
+  }
+}
+
+template <DirGraphConcept G, Arithmetic F>
+void dijkstra_dary(G &g, const DirEdgeProperty<V<G>, F> &w, const V<G> &s) {
+  initialize_single_source<G, F>(g, s);
+  auto &d = g.get_vertex_property<F>(GraphPropertyTag::VertexDistance);
+  auto &pred =
+      g.get_vertex_property<optional<V<G>>>(GraphPropertyTag::VertexParent);
+  vector<pair<F, V<G>>> pq;
+  dary_min_heap_insert(pq, {0, s});
+  while (!pq.empty()) {
+    auto [cw, u] = dary_heap_extract_min(pq);
+    if (d[u] < cw) {
+      continue;
+    }
+    for (const auto &v : g.adj(u)) {
+      bool change = false;
+      relax(u, v, w, d, pred, change);
+      if (change) {
+        dary_min_heap_insert(pq, {d[v], v});
       }
     }
   }
