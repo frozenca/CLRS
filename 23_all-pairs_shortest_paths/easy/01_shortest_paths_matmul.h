@@ -193,10 +193,8 @@ void apsp_path(G &g, const DirEdgeProperty<V<G>, F> &w) {
 template <Arithmetic F>
 bool has_diagonal_negative(const vector<F> &L, index_t N) {
   for (index_t i = 0; i < N; ++i) {
-    for (index_t j = 0; j < N; ++j) {
-      if (L[i * N + i] < 0) {
-        return true;
-      }
+    if (L[i * N + i] < 0) {
+      return true;
     }
   }
   return false;

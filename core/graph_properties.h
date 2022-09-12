@@ -60,6 +60,7 @@ enum class GraphPropertyTag : int32_t {
   EdgeVisited,
   EdgePath,
   EdgeParent,
+  EdgeTransitiveClosure,
   EdgeWeight,
   EdgeWeightAuxiliary,
   GraphBCCArticulationPoints,
